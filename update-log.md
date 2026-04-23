@@ -124,3 +124,48 @@
   - ` M test/translation.test.ts`
   - ` M update-log.md`
 
+## 2026-04-23 22:40:21 +0800
+- Project root: `D:\GoCode\tranlate-plugin`
+- Total size bytes: 175395
+- Total size: 171.28 KB
+- File count: 21
+- Delta: +469 bytes (+469.00 B)
+- Label: status bar icon redesign
+- Changed files:
+  - ` M src/status-bar.ts`
+
+## 2026-04-23 22:45:51 +0800
+- Project root: `D:\GoCode\tranlate-plugin`
+- Total size bytes: 175395
+- Total size: 171.28 KB
+- File count: 21
+- Delta: +0 bytes (+0.00 B)
+- Label: swap status bar icon assignments
+- Changed files:
+  - ` M src/status-bar.ts`
+  - ` M update-log.md`
+
+## 2026-04-23 22:51:16 +0800
+- Project root: `D:\GoCode\tranlate-plugin`
+- Total size bytes: 175089
+- Total size: 170.99 KB
+- File count: 21
+- Delta: -306 bytes (-306.00 B)
+- Label: make prompt textarea follow Typora theme
+- Changed files:
+  - ` M src/status-bar.ts`
+  - ` M src/style.scss`
+  - ` M update-log.md`
+
+## 2026-04-23 22:55:06 +0800
+- Project root: `D:\GoCode\tranlate-plugin`
+- Total size bytes: 174492
+- Total size: 170.40 KB
+- File count: 21
+- Delta: -597 bytes (-597.00 B)
+- Label: align dark prompt textarea with native inputs
+- Changed files:
+  - ` M src/status-bar.ts`
+  - ` M src/style.scss`
+  - ` M update-log.md`
+

@@ -83,17 +83,18 @@ type StatusButtonVariant = 'inline' | 'new-file'
 
 function getDictionaryIcon(isBusy: boolean, variant: StatusButtonVariant) {
   if (variant === 'new-file') {
-    return isBusy ? getBusyNewFileDictionaryIcon() : getIdleNewFileDictionaryIcon()
+    return isBusy ? getBusyDictionaryIcon() : getIdleDictionaryIcon()
   }
-  return isBusy ? getBusyDictionaryIcon() : getIdleDictionaryIcon()
+  return isBusy ? getBusyNewFileDictionaryIcon() : getIdleNewFileDictionaryIcon()
 }
 
 function getIdleDictionaryIcon() {
   return [
     '<svg viewBox="0 0 24 24" class="typora-translate-status-icon" aria-hidden="true">',
-    '<path d="M7 3.75A2.75 2.75 0 0 0 4.25 6.5v11A3.25 3.25 0 0 0 7.5 20.75h10.25a.75.75 0 0 0 0-1.5H7.5a1.75 1.75 0 1 1 0-3.5h10.25V6.5A2.75 2.75 0 0 0 15 3.75H7Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
-    '<path d="M7.5 15.75c-.97 0-1.84.42-2.43 1.08" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
-    '<path d="M8.2 9.6h6.2M9.2 12h4.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
+    '<path d="M6.5 4.25h11A1.75 1.75 0 0 1 19.25 6v12a.75.75 0 0 1-.75.75h-11A2.75 2.75 0 0 1 4.75 16V6A1.75 1.75 0 0 1 6.5 4.25Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
+    '<path d="M11.95 4.85v13.3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
+    '<path d="M7.85 9.1h2.2M7.85 12.15h1.5M13.9 9.1h2.25M13.9 12.15h1.45" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
+    '<path d="M6.2 18.45c.35-.72.92-1.08 1.72-1.08h10.33" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
     '</svg>',
   ].join('')
 }
@@ -101,10 +102,10 @@ function getIdleDictionaryIcon() {
 function getBusyDictionaryIcon() {
   return [
     '<svg viewBox="0 0 24 24" class="typora-translate-status-icon" aria-hidden="true">',
-    '<path d="M5.25 5.75c1.45-.35 2.74-.35 4.15 0l2.6.66 2.6-.66c1.4-.35 2.7-.35 4.15 0v10.94c-1.45-.35-2.74-.35-4.15 0l-2.6.66-2.6-.66c-1.4-.35-2.7-.35-4.15 0V5.75Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
-    '<path d="M12 6.45v11.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
-    '<path d="M8.1 9.45h1.8M8.1 12.15h1.2M14.1 9.45h1.8M14.1 12.15h1.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
-    '<path d="M16.9 16.1l1.55 1.55M18.95 14.05a1.45 1.45 0 1 1-2.9 0 1.45 1.45 0 0 1 2.9 0Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
+    '<path d="M6.5 4.25h11A1.75 1.75 0 0 1 19.25 6v12a.75.75 0 0 1-.75.75h-11A2.75 2.75 0 0 1 4.75 16V6A1.75 1.75 0 0 1 6.5 4.25Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
+    '<path d="M11.95 4.85v13.3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
+    '<path d="M8 10.25h.01M12 10.25h.01M16 10.25h.01" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>',
+    '<path d="M6.2 18.45c.35-.72.92-1.08 1.72-1.08h10.33" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
     '</svg>',
   ].join('')
 }
@@ -112,11 +113,10 @@ function getBusyDictionaryIcon() {
 function getIdleNewFileDictionaryIcon() {
   return [
     '<svg viewBox="0 0 24 24" class="typora-translate-status-icon" aria-hidden="true">',
-    '<path d="M7 3.75A2.75 2.75 0 0 0 4.25 6.5v11A3.25 3.25 0 0 0 7.5 20.75h8.1a.75.75 0 0 0 0-1.5H7.5a1.75 1.75 0 1 1 0-3.5h8.1V6.5A2.75 2.75 0 0 0 12.85 3.75H7Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
-    '<path d="M7.5 15.75c-.97 0-1.84.42-2.43 1.08" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
-    '<path d="M8.2 9.6h5.2M9.2 12h3.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
-    '<rect x="14.9" y="13.4" width="5.2" height="5.2" rx="1.2" fill="currentColor" opacity="0.16"/>',
-    '<path d="M16.1 17.45v-2.9l2.75 2.9v-2.9" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/>',
+    '<path d="M7.4 5.1h8.55a1.5 1.5 0 0 1 1.5 1.5v9.55" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" opacity="0.62"/>',
+    '<path d="M6 7.25h9.9A1.85 1.85 0 0 1 17.75 9.1V18a.75.75 0 0 1-.75.75H7.85A1.85 1.85 0 0 1 6 16.9V7.25Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
+    '<path d="M8.6 10.15h4.1M8.6 13.1h3.1" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
+    '<path d="M15.35 13.75v4.05M13.32 15.78h4.06" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
     '</svg>',
   ].join('')
 }
@@ -124,11 +124,10 @@ function getIdleNewFileDictionaryIcon() {
 function getBusyNewFileDictionaryIcon() {
   return [
     '<svg viewBox="0 0 24 24" class="typora-translate-status-icon" aria-hidden="true">',
-    '<path d="M5.25 5.75c1.45-.35 2.74-.35 4.15 0l2.6.66 2.6-.66c1.4-.35 2.7-.35 4.15 0v9.15c-1.45-.35-2.74-.35-4.15 0l-2.6.66-2.6-.66c-1.4-.35-2.7-.35-4.15 0V5.75Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
-    '<path d="M12 6.45v9.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
-    '<path d="M8.1 9.45h1.8M8.1 12.15h1.2M14.1 9.45h1.8M14.1 12.15h1.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
-    '<rect x="15.05" y="13.55" width="5.1" height="5.1" rx="1.2" fill="currentColor" opacity="0.16"/>',
-    '<path d="M16.2 17.45v-2.8l2.65 2.8v-2.8" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/>',
+    '<path d="M7.4 5.1h8.55a1.5 1.5 0 0 1 1.5 1.5v9.55" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" opacity="0.62"/>',
+    '<path d="M6 7.25h9.9A1.85 1.85 0 0 1 17.75 9.1V18a.75.75 0 0 1-.75.75H7.85A1.85 1.85 0 0 1 6 16.9V7.25Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
+    '<path d="M8.15 12.05h.01M11.95 12.05h.01M15.75 12.05h.01" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>',
+    '<path d="M14.2 16.45h3.1" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
     '</svg>',
   ].join('')
 }
