@@ -1,0 +1,34 @@
+{
+  "private": true,
+  "name": "typora-plugin-bilingual-translate",
+  "version": "0.1.0",
+  "description": "Bilingual translation plugin for Typora powered by OpenAI-compatible APIs.",
+  "type": "module",
+  "scripts": {
+    "build:dev": "node build.js",
+    "build": "node build.js --prod",
+    "pack": "npm run build && node pack.js",
+    "test": "node --import tsx --test test/translation.test.ts"
+  },
+  "keywords": [
+    "typora",
+    "plugin",
+    "translation",
+    "llm"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/jquery": "^3.5.33",
+    "@types/node": "^22.15.30",
+    "@types/typora": "npm:@typora-community-plugin/typora-types@^1.0.16",
+    "@typora-community-plugin/core": "^2.7.7",
+    "archiver": "^7.0.1",
+    "esbuild": "^0.27.3",
+    "esbuild-plugin-typora": "npm:@typora-community-plugin/esbuild-plugin-typora@^1.0.12",
+    "esbuild-sass-plugin": "^3.7.0",
+    "sass": "^1.89.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.8.3"
+  }
+}

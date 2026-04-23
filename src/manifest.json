@@ -1,0 +1,16 @@
+{
+  "id": "codex.bilingual-translate",
+  "name": "Bilingual Translate",
+  "description": "Translate the current Typora document with an OpenAI-compatible LLM and keep source text together with generated translations.",
+  "author": "OpenAI Codex",
+  "authorUrl": "https://openai.com",
+  "repo": "openai/codex-typora-plugin-bilingual-translate",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.0",
+  "minCoreVersion": "2.7.0",
+  "platforms": [
+    "win32",
+    "linux",
+    "darwin"
+  ]
+}

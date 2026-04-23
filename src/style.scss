@@ -1,0 +1,24 @@
+.typora-translate-status-button {
+  appearance: none;
+  border: 1px solid rgba(60, 60, 60, 0.2);
+  border-radius: 999px;
+  background: linear-gradient(135deg, #fff5d6 0%, #ffe2b8 100%);
+  color: #5f3a00;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 8px;
+  padding: 2px 10px;
+  transition: transform 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
+}
+
+.typora-translate-status-button:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(95, 58, 0, 0.12);
+  transform: translateY(-1px);
+}
+
+.typora-translate-status-button:disabled,
+.typora-translate-status-button.is-busy {
+  cursor: progress;
+  opacity: 0.65;
+}
