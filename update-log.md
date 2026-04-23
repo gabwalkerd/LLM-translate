@@ -84,3 +84,13 @@
   - ` M src/translation/api.ts`
   - ` M test/translation.test.ts`
 
+## 2026-04-23 22:06:01 +0800
+- Project root: `D:\GoCode\tranlate-plugin`
+- Total size bytes: 160203
+- Total size: 156.45 KB
+- File count: 21
+- Delta: +2394 bytes (+2.34 KB)
+- Label: Wait for editor readiness before translation
+- Changed files:
+  - ` M src/main.ts`
+

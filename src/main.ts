@@ -16,6 +16,7 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
   private isTranslating = false
   private statusBar?: StatusBarButton
   private hasWarnedAboutStatusBar = false
+  private lastFileOpenAt = 0
 
   async onload() {
     this.registerSettings(new PluginSettings(this.app, this.manifest, {
@@ -28,6 +29,7 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
     this.setupStatusBar()
 
     const remount = () => {
+      this.lastFileOpenAt = Date.now()
       setTimeout(() => {
         const mounted = this.statusBar?.mount()
         if (!mounted && !this.hasWarnedAboutStatusBar) {
@@ -62,32 +64,34 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
       return
     }
 
-    const markdown = getMarkdown()
-    if (!markdown.trim()) {
-      new Notice(this.i18n.t.emptyDocument)
-      return
-    }
-
-    const filePath = await this.getCurrentDocumentPath()
-    const plan = buildTranslationPlan(
-      markdown,
-      settings.targetLanguage,
-      forceRetranslate,
-      this.getFileTranslationMemory(filePath, settings.targetLanguage),
-    )
-    if (plan.eligibleBlockCount === 0) {
-      new Notice(this.i18n.t.noTranslatableBlocks)
-      return
-    }
-    if (plan.tasks.length === 0) {
-      editor.EditHelper.showNotification(this.i18n.t.noPendingBlocks)
-      return
-    }
-
     this.isTranslating = true
     this.statusBar?.setBusy(true)
 
     try {
+      await this.waitForEditorReady()
+
+      const markdown = await this.readCurrentMarkdown()
+      if (!markdown.trim()) {
+        new Notice(this.i18n.t.emptyDocument)
+        return
+      }
+
+      const filePath = await this.getCurrentDocumentPath()
+      const plan = buildTranslationPlan(
+        markdown,
+        settings.targetLanguage,
+        forceRetranslate,
+        this.getFileTranslationMemory(filePath, settings.targetLanguage),
+      )
+      if (plan.eligibleBlockCount === 0) {
+        new Notice(this.i18n.t.noTranslatableBlocks)
+        return
+      }
+      if (plan.tasks.length === 0) {
+        editor.EditHelper.showNotification(this.i18n.t.noPendingBlocks)
+        return
+      }
+
       const translatedTexts = await translateInBatches(settings, plan.tasks)
       const result = applyTranslationResults(plan, translatedTexts)
       await this.replaceDocumentMarkdown(result.markdown)
@@ -119,16 +123,18 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
       return
     }
 
-    const selectedMarkdown = await this.captureSelectionMarkdown()
-    if (!selectedMarkdown) {
-      new Notice(this.i18n.t.noSelection)
-      return
-    }
-
     this.isTranslating = true
     this.statusBar?.setBusy(true)
 
     try {
+      await this.waitForEditorReady()
+
+      const selectedMarkdown = await this.captureSelectionMarkdown()
+      if (!selectedMarkdown) {
+        new Notice(this.i18n.t.noSelection)
+        return
+      }
+
       const sourceHash = hashText(selectedMarkdown)
       const translatedTexts = await translateInBatches(settings, [{
         sourceText: selectedMarkdown,
@@ -263,6 +269,37 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
     await JSBridge.invoke('document.setContent', markdown)
   }
 
+  private async waitForEditorReady() {
+    await this.tryInvokeBridge('window.focus')
+    await this.tryInvokeBridge('window.loadFinished', 400)
+
+    const elapsedSinceOpen = Date.now() - this.lastFileOpenAt
+    if (this.lastFileOpenAt > 0 && elapsedSinceOpen < 350) {
+      await this.delay(350 - elapsedSinceOpen)
+    }
+
+    await this.nextFrame()
+    await this.nextFrame()
+  }
+
+  private async readCurrentMarkdown() {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const directMarkdown = getMarkdown()
+      if (directMarkdown.trim()) {
+        return directMarkdown
+      }
+
+      const bridgeMarkdown = await this.tryGetDocumentContent()
+      if (bridgeMarkdown.trim()) {
+        return bridgeMarkdown
+      }
+
+      await this.delay(120)
+    }
+
+    return getMarkdown()
+  }
+
   private getFileTranslationMemory(filePath: string, targetLanguage: string): TranslationMemoryEntry[] {
     const memory = this.settings.get('translationMemory') as TranslationMemoryState
     return memory[filePath]?.[targetLanguage] ?? []
@@ -305,6 +342,28 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
     }
   }
 
+  private async tryGetDocumentContent() {
+    try {
+      const content = await JSBridge.invoke('document.getContent')
+      return typeof content === 'string' ? content : String(content ?? '')
+    }
+    catch {
+      return ''
+    }
+  }
+
+  private async tryInvokeBridge(command: 'window.focus' | 'window.loadFinished', timeoutMs = 250) {
+    try {
+      await Promise.race([
+        JSBridge.invoke(command),
+        this.delay(timeoutMs),
+      ])
+    }
+    catch {
+      // Best effort only. Some Typora builds may not resolve these commands reliably.
+    }
+  }
+
   private async tryWriteClipboard(text: string) {
     try {
       await navigator.clipboard.writeText(text)
@@ -312,5 +371,13 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
     catch {
       // Best effort only. Clipboard restore failure should not block translation.
     }
+  }
+
+  private async nextFrame() {
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+  }
+
+  private async delay(ms: number) {
+    await new Promise<void>(resolve => setTimeout(resolve, ms))
   }
 }
