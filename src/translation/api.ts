@@ -134,13 +134,13 @@ export function extractAssistantContent(response: ChatCompletionResponse) {
 
 export function parseTranslationArray(content: string) {
   const stripped = stripCodeFence(content.trim())
-  const parsed = JSON.parse(stripped) as string[] | { translations?: string[] }
+  const parsed = JSON.parse(stripped) as unknown
 
   if (Array.isArray(parsed)) {
-    return parsed
+    return parsed.map((item, index) => normalizeTranslationItem(item, index))
   }
-  if (Array.isArray(parsed.translations)) {
-    return parsed.translations
+  if (isObjectLike(parsed) && Array.isArray(parsed.translations)) {
+    return parsed.translations.map((item, index) => normalizeTranslationItem(item, index))
   }
   throw new Error('The model response was not a JSON array of strings.')
 }
@@ -153,4 +153,50 @@ function stripCodeFence(content: string) {
     .replace(/^```(?:json)?\s*/i, '')
     .replace(/\s*```$/, '')
     .trim()
+}
+
+function normalizeTranslationItem(item: unknown, index: number): string {
+  if (typeof item === 'string') {
+    return item
+  }
+
+  if (typeof item === 'number' || typeof item === 'boolean') {
+    return String(item)
+  }
+
+  if (Array.isArray(item)) {
+    const text = item
+      .map((part, nestedIndex) => normalizeTranslationItem(part, nestedIndex))
+      .join('\n')
+      .trim()
+    if (text) {
+      return text
+    }
+  }
+
+  if (isObjectLike(item)) {
+    const preferredKeys = ['translation', 'translated', 'text', 'markdown', 'content', 'output']
+    for (const key of preferredKeys) {
+      const value = item[key]
+      if (typeof value === 'string' && value.trim()) {
+        return value
+      }
+    }
+
+    if (Array.isArray(item.content)) {
+      const text = item.content
+        .map((part, nestedIndex) => normalizeTranslationItem(part, nestedIndex))
+        .join('\n')
+        .trim()
+      if (text) {
+        return text
+      }
+    }
+  }
+
+  throw new Error(`Invalid translation item at index ${index}. Expected a string-like value.`)
+}
+
+function isObjectLike(value: unknown): value is Record<string, any> {
+  return typeof value === 'object' && value !== null
 }

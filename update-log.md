@@ -71,3 +71,16 @@
   - ` M src/status-bar.ts`
   - ` M src/style.scss`
 
+## 2026-04-23 21:52:28 +0800
+- Project root: `D:\GoCode\tranlate-plugin`
+- Total size bytes: 157809
+- Total size: 154.11 KB
+- File count: 21
+- Delta: +2452 bytes (+2.39 KB)
+- Label: Handle non-string translation items and switch busy icon
+- Changed files:
+  - ` M src/status-bar.ts`
+  - ` M src/style.scss`
+  - ` M src/translation/api.ts`
+  - ` M test/translation.test.ts`
+

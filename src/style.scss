@@ -31,20 +31,7 @@
   width: 18px;
 }
 
-.typora-translate-status-button.is-busy .typora-translate-status-icon {
-  animation: typora-translate-spin 0.9s linear infinite;
-}
-
 .typora-translate-busy,
 .typora-translate-busy * {
   cursor: progress !important;
-}
-
-@keyframes typora-translate-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
 }

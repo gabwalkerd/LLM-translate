@@ -132,9 +132,17 @@ test('createTranslationBatches preserves order and size boundaries', () => {
   assert.deepEqual(batches[1].map(item => item.sourceHash), ['3'])
 })
 
-test('parseTranslationArray accepts plain JSON or fenced JSON', () => {
+test('parseTranslationArray accepts plain JSON, fenced JSON, and object items', () => {
   assert.deepEqual(parseTranslationArray('["a","b"]'), ['a', 'b'])
   assert.deepEqual(parseTranslationArray('```json\n["a","b"]\n```'), ['a', 'b'])
+  assert.deepEqual(
+    parseTranslationArray('{"translations":[{"translation":"a"},{"text":"b"}]}'),
+    ['a', 'b'],
+  )
+  assert.deepEqual(
+    parseTranslationArray('[{"markdown":"a"},["b"]]'),
+    ['a', 'b'],
+  )
 })
 
 test('extractAssistantContent handles string and structured content', () => {
