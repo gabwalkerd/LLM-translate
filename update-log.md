@@ -60,3 +60,14 @@
   - ` M test/translation.test.ts`
   - ` M update-log.md`
 
+## 2026-04-23 21:41:47 +0800
+- Project root: `D:\GoCode\tranlate-plugin`
+- Total size bytes: 155357
+- Total size: 151.72 KB
+- File count: 21
+- Delta: +1221 bytes (+1.19 KB)
+- Label: Improve status-bar click reliability and busy feedback
+- Changed files:
+  - ` M src/status-bar.ts`
+  - ` M src/style.scss`
+

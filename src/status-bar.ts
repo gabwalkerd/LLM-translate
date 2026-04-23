@@ -1,6 +1,7 @@
 export class StatusBarButton {
   private button?: HTMLButtonElement
   private observer?: MutationObserver
+  private isBusy = false
 
   constructor(
     private readonly getTitle: () => string,
@@ -45,7 +46,17 @@ export class StatusBarButton {
     button.title = this.getTitle()
     button.setAttribute('aria-label', this.getTitle())
     button.innerHTML = getDictionaryIcon()
-    button.addEventListener('click', this.onClick)
+    button.addEventListener('mousedown', event => {
+      // Keep editor focus and current selection when the user clicks the status-bar icon.
+      event.preventDefault()
+    })
+    button.addEventListener('click', event => {
+      event.preventDefault()
+      if (this.isBusy) {
+        return
+      }
+      this.onClick()
+    })
 
     container.appendChild(button)
     this.button = button
@@ -53,11 +64,14 @@ export class StatusBarButton {
   }
 
   setBusy(isBusy: boolean) {
+    this.isBusy = isBusy
+    document.documentElement.classList.toggle('typora-translate-busy', isBusy)
+
     if (!this.button) {
       return
     }
-    this.button.disabled = isBusy
     this.button.classList.toggle('is-busy', isBusy)
+    this.button.setAttribute('aria-busy', String(isBusy))
     this.button.title = this.getTitle()
     this.button.setAttribute('aria-label', this.getTitle())
   }

@@ -15,12 +15,11 @@
   width: 24px;
 }
 
-.typora-translate-status-button:hover:not(:disabled) {
+.typora-translate-status-button:hover {
   opacity: 1;
   transform: translateY(-1px);
 }
 
-.typora-translate-status-button:disabled,
 .typora-translate-status-button.is-busy {
   cursor: wait;
   opacity: 0.45;
@@ -30,4 +29,22 @@
   display: block;
   height: 18px;
   width: 18px;
+}
+
+.typora-translate-status-button.is-busy .typora-translate-status-icon {
+  animation: typora-translate-spin 0.9s linear infinite;
+}
+
+.typora-translate-busy,
+.typora-translate-busy * {
+  cursor: progress !important;
+}
+
+@keyframes typora-translate-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
