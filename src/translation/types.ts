@@ -3,8 +3,9 @@ export interface TranslationTask {
   sourceHash: string
 }
 
-export interface TranslationBatch {
-  tasks: TranslationTask[]
+export interface TranslationMemoryEntry {
+  sourceHash: string
+  translatedHash: string
 }
 
 export interface TranslationPlan {
@@ -37,10 +38,13 @@ export interface ExistingTranslation {
   separator: string
   sourceHash: string
   lang: string
+  translatedHash: string
+  format: 'clean' | 'legacy'
 }
 
 export interface ApplyTranslationResult {
   markdown: string
   translatedCount: number
   skippedCount: number
+  memoryEntries: TranslationMemoryEntry[]
 }

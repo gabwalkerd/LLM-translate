@@ -1,8 +1,8 @@
 import { hashText } from './hash'
-import type { ApplyTranslationResult, ExistingTranslation, PlannedEntry, TranslationPlan, TranslationTask } from './types'
+import type { ApplyTranslationResult, ExistingTranslation, PlannedEntry, TranslationMemoryEntry, TranslationPlan, TranslationTask } from './types'
 
 interface ParsedBlock {
-  kind: 'eligible' | 'raw' | 'translation'
+  kind: 'eligible' | 'raw' | 'legacy-translation'
   body: string
   separator: string
   translationMeta?: {
@@ -13,14 +13,20 @@ interface ParsedBlock {
 
 const START_MARKER = /^<!--\s*typora-translate:start\s+lang="([^"]+)"\s+source-hash="([^"]+)"\s*-->$/
 const END_MARKER = /^<!--\s*typora-translate:end\s*-->$/
-const TRANSLATION_LABEL = '[译]'
 
-export function buildTranslationPlan(markdown: string, targetLanguage: string, forceRetranslate = false): TranslationPlan {
+export function buildTranslationPlan(
+  markdown: string,
+  targetLanguage: string,
+  forceRetranslate = false,
+  memoryEntries: TranslationMemoryEntry[] = [],
+): TranslationPlan {
   const blocks = splitMarkdownIntoBlocks(markdown)
   const entries: PlannedEntry[] = []
   const tasks: TranslationTask[] = []
   let skippedCount = 0
   let eligibleBlockCount = 0
+  const rememberedTranslations = new Map(memoryEntries.map(entry => [entry.sourceHash, entry.translatedHash]))
+  const rememberedTranslatedHashes = new Set(memoryEntries.map(entry => entry.translatedHash))
 
   for (let index = 0; index < blocks.length; index += 1) {
     const current = blocks[index]
@@ -37,10 +43,22 @@ export function buildTranslationPlan(markdown: string, targetLanguage: string, f
     eligibleBlockCount += 1
     const sourceHash = hashText(current.body)
     const next = blocks[index + 1]
-    const hasExistingTranslation = next?.kind === 'translation'
-    const existingTranslation = hasExistingTranslation
-      ? toExistingTranslation(next)
-      : undefined
+    const nextHash = next?.kind === 'eligible' ? hashText(next.body) : undefined
+    const existingTranslation = next?.kind === 'legacy-translation'
+      ? toLegacyTranslation(next)
+      : next?.kind === 'eligible' && nextHash && (
+        rememberedTranslations.get(sourceHash) === nextHash ||
+        rememberedTranslatedHashes.has(nextHash)
+      )
+        ? {
+          body: next.body,
+          separator: next.separator,
+          sourceHash: rememberedTranslations.get(sourceHash) === nextHash ? sourceHash : '__mismatch__',
+          lang: targetLanguage,
+          translatedHash: nextHash,
+          format: 'clean' as const,
+        }
+        : undefined
 
     if (existingTranslation) {
       index += 1
@@ -87,6 +105,7 @@ export function applyTranslationResults(plan: TranslationPlan, translatedTexts: 
   const chunks: string[] = []
   let translatedCount = 0
   let skippedCount = 0
+  const memoryEntries: TranslationMemoryEntry[] = []
 
   for (const entry of plan.entries) {
     if (entry.kind === 'raw') {
@@ -96,6 +115,10 @@ export function applyTranslationResults(plan: TranslationPlan, translatedTexts: 
 
     if (entry.action === 'keep' && entry.existingTranslation) {
       skippedCount += 1
+      memoryEntries.push({
+        sourceHash: entry.sourceHash,
+        translatedHash: entry.existingTranslation.translatedHash,
+      })
       chunks.push(entry.body, entry.separator, entry.existingTranslation.body, entry.existingTranslation.separator)
       continue
     }
@@ -109,11 +132,16 @@ export function applyTranslationResults(plan: TranslationPlan, translatedTexts: 
 
     const between = entry.existingTranslation ? entry.separator : '\n\n'
     const after = entry.existingTranslation ? entry.existingTranslation.separator : entry.separator
+    const translationBlock = buildTranslationBlock(translatedText, plan.targetLanguage, entry.sourceHash)
 
+    memoryEntries.push({
+      sourceHash: entry.sourceHash,
+      translatedHash: hashText(translationBlock),
+    })
     chunks.push(
       entry.body,
       between,
-      buildTranslationBlock(translatedText, plan.targetLanguage, entry.sourceHash),
+      translationBlock,
       after,
     )
   }
@@ -126,6 +154,7 @@ export function applyTranslationResults(plan: TranslationPlan, translatedTexts: 
     markdown: chunks.join(''),
     translatedCount,
     skippedCount,
+    memoryEntries,
   }
 }
 
@@ -153,16 +182,8 @@ export function createTranslationBatches(tasks: TranslationTask[], batchCharLimi
   return batches
 }
 
-export function buildTranslationBlock(translatedText: string, lang: string, sourceHash: string) {
-  const normalizedText = translatedText.replace(/\r\n/g, '\n').trim()
-
-  return [
-    `<!-- typora-translate:start lang="${lang}" source-hash="${sourceHash}" -->`,
-    TRANSLATION_LABEL,
-    '',
-    normalizedText,
-    '<!-- typora-translate:end -->',
-  ].join('\n')
+export function buildTranslationBlock(translatedText: string, _lang: string, _sourceHash: string) {
+  return translatedText.replace(/\r\n/g, '\n').trim()
 }
 
 function getSourceAction(options: {
@@ -175,6 +196,9 @@ function getSourceAction(options: {
   if (!existingTranslation) {
     return 'insert'
   }
+  if (existingTranslation.format === 'legacy') {
+    return 'replace'
+  }
   if (forceRetranslate) {
     return 'replace'
   }
@@ -185,19 +209,6 @@ function getSourceAction(options: {
 }
 
 type SourceEntryAction = 'keep' | 'insert' | 'replace'
-
-function toExistingTranslation(block: ParsedBlock): ExistingTranslation {
-  if (block.kind !== 'translation' || !block.translationMeta) {
-    throw new Error('Invalid translation block.')
-  }
-
-  return {
-    body: block.body,
-    separator: block.separator,
-    sourceHash: block.translationMeta.sourceHash,
-    lang: block.translationMeta.lang,
-  }
-}
 
 export function splitMarkdownIntoBlocks(markdown: string) {
   const normalized = markdown.replace(/\r\n/g, '\n')
@@ -233,10 +244,10 @@ export function splitMarkdownIntoBlocks(markdown: string) {
 }
 
 function classifyBlock(body: string, separator: string): ParsedBlock {
-  const translationMeta = parseTranslationMeta(body)
+  const translationMeta = parseLegacyTranslationMeta(body)
   if (translationMeta) {
     return {
-      kind: 'translation',
+      kind: 'legacy-translation',
       body,
       separator,
       translationMeta,
@@ -258,7 +269,7 @@ function classifyBlock(body: string, separator: string): ParsedBlock {
   }
 }
 
-function parseTranslationMeta(body: string) {
+function parseLegacyTranslationMeta(body: string) {
   const lines = body.split('\n')
   const startMatch = lines[0]?.match(START_MARKER)
   const isClosed = END_MARKER.test(lines.at(-1) ?? '')
@@ -270,6 +281,24 @@ function parseTranslationMeta(body: string) {
   return {
     lang: startMatch[1],
     sourceHash: startMatch[2],
+  }
+}
+
+function toLegacyTranslation(block: ParsedBlock): ExistingTranslation {
+  if (block.kind !== 'legacy-translation' || !block.translationMeta) {
+    throw new Error('Invalid legacy translation block.')
+  }
+
+  const lines = block.body.split('\n')
+  const content = lines.slice(1, -1).filter((line, index) => !(index === 0 && line.trim() === '[译]')).join('\n').trim()
+
+  return {
+    body: content,
+    separator: block.separator,
+    sourceHash: block.translationMeta.sourceHash,
+    lang: block.translationMeta.lang,
+    translatedHash: hashText(content),
+    format: 'legacy',
   }
 }
 

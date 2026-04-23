@@ -32,3 +32,31 @@
 - Delta: -155 bytes (-155.00 B)
 - Label: Refine local Typora installation guide
 
+## 2026-04-23 20:59:36 +0800
+- Project root: `D:\GoCode\tranlate-plugin`
+- Total size bytes: 149501
+- Total size: 146.00 KB
+- File count: 21
+- Delta: +616 bytes (+616.00 B)
+- Label: Fix document translation write-back in Typora
+- Changed files:
+  - ` M src/main.ts`
+
+## 2026-04-23 21:15:23 +0800
+- Project root: `D:\GoCode\tranlate-plugin`
+- Total size bytes: 154136
+- Total size: 150.52 KB
+- File count: 21
+- Delta: +4635 bytes (+4.53 KB)
+- Label: Refine bilingual UI and hide translation markers
+- Changed files:
+  - ` M src/i18n.ts`
+  - ` M src/main.ts`
+  - ` M src/settings.ts`
+  - ` M src/status-bar.ts`
+  - ` M src/style.scss`
+  - ` M src/translation/markdown.ts`
+  - ` M src/translation/types.ts`
+  - ` M test/translation.test.ts`
+  - ` M update-log.md`
+

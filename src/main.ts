@@ -1,13 +1,14 @@
 import './style.scss'
 import { Notice, Plugin, PluginSettings } from '@typora-community-plugin/core'
 import { editor, File, getMarkdown, isInputComponent, JSBridge } from 'typora'
-import { formatMessage, i18n } from './i18n'
+import { i18n } from './i18n'
 import { TranslationSettingTab } from './setting-tab'
-import { DEFAULT_SETTINGS, SETTINGS_VERSION, type TranslationPluginSettings } from './settings'
+import { DEFAULT_SETTINGS, SETTINGS_VERSION, type TranslationMemoryState, type TranslationPluginSettings } from './settings'
 import { StatusBarButton } from './status-bar'
 import { translateInBatches } from './translation/api'
 import { applyTranslationResults, buildTranslationBlock, buildTranslationPlan } from './translation/markdown'
 import { hashText } from './translation/hash'
+import type { TranslationMemoryEntry } from './translation/types'
 
 export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSettings> {
   i18n = i18n
@@ -67,7 +68,13 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
       return
     }
 
-    const plan = buildTranslationPlan(markdown, settings.targetLanguage, forceRetranslate)
+    const filePath = await this.getCurrentDocumentPath()
+    const plan = buildTranslationPlan(
+      markdown,
+      settings.targetLanguage,
+      forceRetranslate,
+      this.getFileTranslationMemory(filePath, settings.targetLanguage),
+    )
     if (plan.eligibleBlockCount === 0) {
       new Notice(this.i18n.t.noTranslatableBlocks)
       return
@@ -83,15 +90,12 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
     try {
       const translatedTexts = await translateInBatches(settings, plan.tasks)
       const result = applyTranslationResults(plan, translatedTexts)
-      await JSBridge.invoke('document.setContent', result.markdown)
-      editor.EditHelper.showNotification(formatMessage(this.i18n.t.translateSuccess, {
-        translated: result.translatedCount,
-        skipped: result.skippedCount,
-      }))
+      await this.replaceDocumentMarkdown(result.markdown)
+      this.setFileTranslationMemory(filePath, settings.targetLanguage, result.memoryEntries)
     }
     catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      new Notice(formatMessage(this.i18n.t.translateFailure, { message }))
+      new Notice(this.i18n.t.translateFailure.replace('{message}', message))
     }
     finally {
       this.isTranslating = false
@@ -134,11 +138,10 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
       const replacement = this.buildSelectionReplacement(selectedMarkdown, translated, settings.targetLanguage, sourceHash)
       editor.UserOp.backspaceHandler(editor, null, 'Delete')
       editor.UserOp.pasteHandler(editor, replacement, true)
-      editor.EditHelper.showNotification(this.i18n.t.translateSelectionSuccess)
     }
     catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      new Notice(formatMessage(this.i18n.t.translateFailure, { message }))
+      new Notice(this.i18n.t.translateFailure.replace('{message}', message))
     }
     finally {
       this.isTranslating = false
@@ -173,12 +176,7 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
 
   private setupStatusBar() {
     this.statusBar = new StatusBarButton(
-      () => {
-        if (this.isTranslating) {
-          return this.i18n.t.statusButtonBusy
-        }
-        return this.hasActiveSelection() ? this.i18n.t.statusButtonSelection : this.i18n.t.statusButton
-      },
+      () => this.isTranslating ? this.i18n.t.statusButtonBusy : this.i18n.t.statusButton,
       () => {
         if (this.hasActiveSelection()) {
           void this.translateSelection()
@@ -199,6 +197,7 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
       targetLanguage: this.settings.get('targetLanguage').trim() || DEFAULT_SETTINGS.targetLanguage,
       systemPromptTemplate: this.settings.get('systemPromptTemplate').trim() || DEFAULT_SETTINGS.systemPromptTemplate,
       batchCharLimit: this.settings.get('batchCharLimit'),
+      translationMemory: this.settings.get('translationMemory'),
     }
   }
 
@@ -243,6 +242,58 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
     }
 
     return selected
+  }
+
+  private async replaceDocumentMarkdown(markdown: string) {
+    const typoraFile = File as unknown as {
+      reloadContent?: (markdown: string, t?: boolean, n?: boolean, i?: boolean, r?: boolean, o?: boolean) => void
+      setContent?: (markdown: string, shouldKeepUndo?: boolean) => void
+    }
+
+    if (typeof typoraFile.reloadContent === 'function') {
+      typoraFile.reloadContent(markdown, false, true, false, true)
+      return
+    }
+
+    if (typeof typoraFile.setContent === 'function') {
+      typoraFile.setContent(markdown, false)
+      return
+    }
+
+    await JSBridge.invoke('document.setContent', markdown)
+  }
+
+  private getFileTranslationMemory(filePath: string, targetLanguage: string): TranslationMemoryEntry[] {
+    const memory = this.settings.get('translationMemory') as TranslationMemoryState
+    return memory[filePath]?.[targetLanguage] ?? []
+  }
+
+  private setFileTranslationMemory(filePath: string, targetLanguage: string, entries: TranslationMemoryEntry[]) {
+    const memory = { ...(this.settings.get('translationMemory') as TranslationMemoryState) }
+    const fileMemory = { ...(memory[filePath] ?? {}) }
+    fileMemory[targetLanguage] = entries
+    memory[filePath] = fileMemory
+    this.settings.set('translationMemory', memory)
+  }
+
+  private async getCurrentDocumentPath() {
+    const fileWithBundle = File as unknown as {
+      bundle?: { filePath?: string }
+      filePath?: string
+    }
+
+    const filePath = fileWithBundle.bundle?.filePath || fileWithBundle.filePath
+    if (filePath) {
+      return filePath
+    }
+
+    try {
+      const currentPath = await JSBridge.invoke('document.currentPath')
+      return String(currentPath || '__typora-current-document__')
+    }
+    catch {
+      return '__typora-current-document__'
+    }
   }
 
   private async tryReadClipboard() {

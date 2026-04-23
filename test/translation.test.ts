@@ -21,17 +21,21 @@ test('buildTranslationPlan detects eligible blocks and inserts translations afte
     '- List item',
   ].join('\n')
 
-  const plan = buildTranslationPlan(markdown, 'zh-CN', false)
+  const plan = buildTranslationPlan(markdown, 'zh-CN', false, [])
 
   assert.equal(plan.eligibleBlockCount, 4)
   assert.equal(plan.tasks.length, 4)
 })
 
 test('existing translation with matching hash is skipped', () => {
-  const sourceHash = hashText('Hello')
+  const sourceText = 'Hello'
+  const sourceHash = hashText(sourceText)
   const rebuilt = buildTranslationBlock('你好', 'zh-CN', sourceHash)
   const sourceMarkdown = ['Hello', '', rebuilt].join('\n')
-  const plan = buildTranslationPlan(sourceMarkdown, 'zh-CN', false)
+  const plan = buildTranslationPlan(sourceMarkdown, 'zh-CN', false, [{
+    sourceHash,
+    translatedHash: hashText(rebuilt),
+  }])
 
   assert.equal(plan.tasks.length, 0)
   assert.equal(plan.skippedCount, 1)
@@ -47,16 +51,36 @@ test('changed source replaces old translation instead of duplicating it', () => 
     'Next paragraph',
   ].join('\n')
 
-  const plan = buildTranslationPlan(markdown, 'zh-CN', false)
+  const plan = buildTranslationPlan(markdown, 'zh-CN', false, [{
+    sourceHash: 'deadbeef',
+    translatedHash: hashText(oldBlock),
+  }])
   const result = applyTranslationResults(plan, ['你好，世界', '下一段'])
 
-  assert.match(result.markdown, new RegExp(`source-hash="${hashText('Hello world')}"`))
-  assert.match(result.markdown, /Hello world\n\n<!-- typora-translate:start/)
-  assert.equal((result.markdown.match(/typora-translate:start/g) ?? []).length, 2)
+  assert.doesNotMatch(result.markdown, /typora-translate/)
+  assert.match(result.markdown, /Hello world\n\n你好，世界/)
   assert.equal(result.translatedCount, 2)
 })
 
-test('translation blocks can contain tables and are still parsed as a single managed block', () => {
+test('legacy marked translations are migrated to clean visible output on rerun', () => {
+  const markdown = [
+    'hello world',
+    '',
+    '<!-- typora-translate:start lang="zh-CN" source-hash="33d9e01c" -->',
+    '[译]',
+    '',
+    '你好，世界',
+    '<!-- typora-translate:end -->',
+  ].join('\n')
+
+  const plan = buildTranslationPlan(markdown, 'zh-CN', false, [])
+  const result = applyTranslationResults(plan, ['你好，世界'])
+
+  assert.doesNotMatch(result.markdown, /typora-translate|^\[译\]$/m)
+  assert.equal(result.markdown, ['hello world', '', '你好，世界'].join('\n'))
+})
+
+test('translation blocks can contain tables and are tracked without visible markers', () => {
   const sourceTable = [
     '| Name | Description |',
     '| --- | --- |',
@@ -76,10 +100,24 @@ test('translation blocks can contain tables and are still parsed as a single man
     'Next paragraph',
   ].join('\n')
 
-  const plan = buildTranslationPlan(markdown, 'zh-CN', false)
+  const plan = buildTranslationPlan(markdown, 'zh-CN', false, [{
+    sourceHash: hashText(sourceTable),
+    translatedHash: hashText(block),
+  }])
 
   assert.equal(plan.tasks.length, 1)
   assert.equal(plan.skippedCount, 1)
+})
+
+test('applyTranslationResults returns fresh memory entries for visible-clean bilingual output', () => {
+  const markdown = ['Alpha', '', 'Beta'].join('\n')
+  const plan = buildTranslationPlan(markdown, 'zh-CN', false, [])
+  const result = applyTranslationResults(plan, ['阿尔法', '贝塔'])
+
+  assert.equal(result.memoryEntries.length, 2)
+  assert.equal(result.memoryEntries[0].sourceHash, hashText('Alpha'))
+  assert.equal(result.memoryEntries[0].translatedHash, hashText('阿尔法'))
+  assert.equal(result.markdown, ['Alpha', '', '阿尔法', '', 'Beta', '', '贝塔'].join('\n'))
 })
 
 test('createTranslationBatches preserves order and size boundaries', () => {

@@ -1,3 +1,5 @@
+import type { TranslationMemoryEntry } from './translation/types'
+
 export interface TranslationPluginSettings {
   baseUrl: string
   apiKey: string
@@ -5,9 +7,16 @@ export interface TranslationPluginSettings {
   targetLanguage: string
   systemPromptTemplate: string
   batchCharLimit: number
+  translationMemory: TranslationMemoryState
 }
 
-export const SETTINGS_VERSION = 1
+export interface TranslationMemoryState {
+  [filePath: string]: {
+    [targetLanguage: string]: TranslationMemoryEntry[]
+  }
+}
+
+export const SETTINGS_VERSION = 2
 
 export const DEFAULT_PROMPT_TEMPLATE = [
   'You are a professional translation engine.',
@@ -24,4 +33,5 @@ export const DEFAULT_SETTINGS: TranslationPluginSettings = {
   targetLanguage: 'zh-CN',
   systemPromptTemplate: DEFAULT_PROMPT_TEMPLATE,
   batchCharLimit: 4000,
+  translationMemory: {},
 }
