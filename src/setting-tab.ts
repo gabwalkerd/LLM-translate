@@ -1,3 +1,4 @@
+import { Notice } from '@typora-community-plugin/core'
 import { SettingTab } from '@typora-community-plugin/core'
 import type BilingualTranslatePlugin from './main'
 import { DEFAULT_SETTINGS } from './settings'
@@ -56,6 +57,32 @@ export class TranslationSettingTab extends SettingTab {
       })
     })
 
+    this.addSetting(setting => {
+      setting.addName(t.testApiFormatName)
+      setting.addDescription(t.testApiFormatDesc)
+      setting.addButton(button => {
+        button.textContent = t.testApiFormatButton
+        button.onclick = async () => {
+          const originalLabel = t.testApiFormatButton
+          button.disabled = true
+          button.textContent = t.testApiFormatRunning
+
+          try {
+            await this.plugin.testApiFormat()
+            new Notice(t.testApiFormatSuccess)
+          }
+          catch (error) {
+            const message = error instanceof Error ? error.message : String(error)
+            new Notice(t.testApiFormatFailure.replace('{message}', message))
+          }
+          finally {
+            button.disabled = false
+            button.textContent = originalLabel
+          }
+        }
+      })
+    })
+
     this.addSettingTitle(t.settingsSectionTranslation)
 
     this.addSetting(setting => {
@@ -74,9 +101,11 @@ export class TranslationSettingTab extends SettingTab {
       setting.addName(t.promptName)
       setting.addDescription(t.promptDesc)
       setting.addTextArea(input => {
+        input.classList.add('typora-translate-prompt-textarea')
         input.value = settings.get('systemPromptTemplate')
         input.placeholder = DEFAULT_SETTINGS.systemPromptTemplate
-        input.rows = 5
+        input.rows = 7
+        input.spellcheck = false
         input.oninput = () => {
           settings.set('systemPromptTemplate', input.value.trim() || DEFAULT_SETTINGS.systemPromptTemplate)
         }

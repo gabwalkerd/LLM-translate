@@ -158,6 +158,40 @@ export function applyTranslationResults(plan: TranslationPlan, translatedTexts: 
   }
 }
 
+export function buildStandaloneTranslationMarkdown(plan: TranslationPlan, translatedTexts: string[]) {
+  const queue = [...translatedTexts]
+  const chunks: string[] = []
+
+  for (const entry of plan.entries) {
+    if (entry.kind === 'raw') {
+      chunks.push(entry.body, entry.separator)
+      continue
+    }
+
+    if (entry.action === 'keep' && entry.existingTranslation) {
+      chunks.push(entry.existingTranslation.body, entry.existingTranslation.separator)
+      continue
+    }
+
+    const translatedText = queue.shift()
+    if (!translatedText) {
+      throw new Error('Missing translated text for one or more Markdown blocks.')
+    }
+
+    const after = entry.existingTranslation ? entry.existingTranslation.separator : entry.separator
+    chunks.push(
+      buildTranslationBlock(translatedText, plan.targetLanguage, entry.sourceHash),
+      after,
+    )
+  }
+
+  if (queue.length > 0) {
+    throw new Error('Received more translated texts than expected.')
+  }
+
+  return chunks.join('')
+}
+
 export function createTranslationBatches(tasks: TranslationTask[], batchCharLimit: number) {
   const batches: TranslationTask[][] = []
   let currentBatch: TranslationTask[] = []

@@ -1,20 +1,20 @@
 import './style.scss'
-import { Notice, Plugin, PluginSettings } from '@typora-community-plugin/core'
+import { fs, Notice, path, Plugin, PluginSettings } from '@typora-community-plugin/core'
 import { editor, File, getMarkdown, isInputComponent, JSBridge } from 'typora'
 import { i18n } from './i18n'
 import { TranslationSettingTab } from './setting-tab'
 import { DEFAULT_SETTINGS, SETTINGS_VERSION, type TranslationMemoryState, type TranslationPluginSettings } from './settings'
 import { StatusBarButton } from './status-bar'
 import { translateInBatches } from './translation/api'
-import { applyTranslationResults, buildTranslationBlock, buildTranslationPlan } from './translation/markdown'
+import { applyTranslationResults, buildStandaloneTranslationMarkdown, buildTranslationBlock, buildTranslationPlan } from './translation/markdown'
 import { hashText } from './translation/hash'
-import type { TranslationMemoryEntry } from './translation/types'
+import type { TranslationMemoryEntry, TranslationTask } from './translation/types'
 
 export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSettings> {
   i18n = i18n
 
   private isTranslating = false
-  private statusBar?: StatusBarButton
+  private statusBars: StatusBarButton[] = []
   private hasWarnedAboutStatusBar = false
   private lastFileOpenAt = 0
 
@@ -31,7 +31,7 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
     const remount = () => {
       this.lastFileOpenAt = Date.now()
       setTimeout(() => {
-        const mounted = this.statusBar?.mount()
+        const mounted = this.statusBars.some(statusBar => statusBar.mount())
         if (!mounted && !this.hasWarnedAboutStatusBar) {
           this.hasWarnedAboutStatusBar = true
           new Notice(this.i18n.t.statusBarMissing)
@@ -45,7 +45,7 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
   }
 
   onunload() {
-    this.statusBar?.stop()
+    this.statusBars.forEach(statusBar => statusBar.stop())
   }
 
   async translateDocument(forceRetranslate = false) {
@@ -65,7 +65,7 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
     }
 
     this.isTranslating = true
-    this.statusBar?.setBusy(true)
+    this.setStatusBarsBusy(true)
 
     try {
       await this.waitForEditorReady()
@@ -103,7 +103,7 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
     }
     finally {
       this.isTranslating = false
-      this.statusBar?.setBusy(false)
+      this.setStatusBarsBusy(false)
     }
   }
 
@@ -124,7 +124,7 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
     }
 
     this.isTranslating = true
-    this.statusBar?.setBusy(true)
+    this.setStatusBarsBusy(true)
 
     try {
       await this.waitForEditorReady()
@@ -151,8 +151,92 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
     }
     finally {
       this.isTranslating = false
-      this.statusBar?.setBusy(false)
+      this.setStatusBarsBusy(false)
     }
+  }
+
+  async translateDocumentToNewFile() {
+    if (this.isTranslating) {
+      new Notice(this.i18n.t.translateRunning)
+      return
+    }
+
+    const settings = this.snapshotSettings()
+    if (!settings.baseUrl || !settings.apiKey || !settings.model) {
+      new Notice(this.i18n.t.missingConfig)
+      return
+    }
+    if (!Number.isInteger(settings.batchCharLimit) || settings.batchCharLimit <= 0) {
+      new Notice(this.i18n.t.invalidBatchLimit)
+      return
+    }
+
+    this.isTranslating = true
+    this.setStatusBarsBusy(true)
+
+    try {
+      await this.waitForEditorReady()
+
+      const markdown = await this.readCurrentMarkdown()
+      if (!markdown.trim()) {
+        new Notice(this.i18n.t.emptyDocument)
+        return
+      }
+
+      const filePath = await this.getCurrentDocumentPath()
+      const sourcePath = this.ensureSavedDocumentPath(filePath)
+      const plan = buildTranslationPlan(
+        markdown,
+        settings.targetLanguage,
+        false,
+        this.getFileTranslationMemory(filePath, settings.targetLanguage),
+      )
+      if (plan.eligibleBlockCount === 0) {
+        new Notice(this.i18n.t.noTranslatableBlocks)
+        return
+      }
+
+      const translatedTexts = plan.tasks.length > 0
+        ? await translateInBatches(settings, plan.tasks)
+        : []
+      const translatedMarkdown = buildStandaloneTranslationMarkdown(plan, translatedTexts)
+      const outputPath = this.buildTranslatedFilePath(sourcePath, settings.targetLanguage)
+
+      await fs.writeText(outputPath, translatedMarkdown)
+      await this.openTranslatedFileInRightSplit(outputPath)
+    }
+    catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      new Notice(this.i18n.t.translateFailure.replace('{message}', message))
+    }
+    finally {
+      this.isTranslating = false
+      this.setStatusBarsBusy(false)
+    }
+  }
+
+  async testApiFormat() {
+    if (this.isTranslating) {
+      new Notice(this.i18n.t.translateRunning)
+      return false
+    }
+
+    const settings = this.snapshotSettings()
+    if (!settings.baseUrl || !settings.apiKey || !settings.model) {
+      throw new Error(this.i18n.t.missingConfig)
+    }
+    if (!Number.isInteger(settings.batchCharLimit) || settings.batchCharLimit <= 0) {
+      throw new Error(this.i18n.t.invalidBatchLimit)
+    }
+
+    const probeTasks = this.createApiProbeTasks()
+    const translations = await translateInBatches(settings, probeTasks)
+
+    if (translations.length !== probeTasks.length) {
+      throw new Error(this.i18n.t.testApiFormatUnexpectedCount.replace('{count}', String(translations.length)))
+    }
+
+    return true
   }
 
   private registerCommands() {
@@ -178,10 +262,17 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
       scope: 'editor',
       callback: () => this.translateDocument(true),
     })
+
+    this.registerCommand({
+      id: 'translate-document-to-new-file',
+      title: this.i18n.t.translateDocumentToNewFile,
+      scope: 'editor',
+      callback: () => this.translateDocumentToNewFile(),
+    })
   }
 
   private setupStatusBar() {
-    this.statusBar = new StatusBarButton(
+    const inlineStatusBar = new StatusBarButton(
       () => this.isTranslating ? this.i18n.t.statusButtonBusy : this.i18n.t.statusButton,
       () => {
         if (this.hasActiveSelection()) {
@@ -190,9 +281,19 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
         }
         void this.translateDocument(false)
       },
+      'inline',
     )
-    this.statusBar.start()
-    this.register(() => this.statusBar?.stop())
+    const newFileStatusBar = new StatusBarButton(
+      () => this.isTranslating ? this.i18n.t.statusNewFileButtonBusy : this.i18n.t.statusNewFileButton,
+      () => {
+        void this.translateDocumentToNewFile()
+      },
+      'new-file',
+    )
+
+    this.statusBars = [inlineStatusBar, newFileStatusBar]
+    this.statusBars.forEach(statusBar => statusBar.start())
+    this.register(() => this.statusBars.forEach(statusBar => statusBar.stop()))
   }
 
   private snapshotSettings(): TranslationPluginSettings {
@@ -379,5 +480,60 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
 
   private async delay(ms: number) {
     await new Promise<void>(resolve => setTimeout(resolve, ms))
+  }
+
+  private createApiProbeTasks(): TranslationTask[] {
+    const samples = [
+      '# Hello world',
+      '- Preserve `inline code` and **Markdown** structure.',
+    ]
+
+    return samples.map(sourceText => ({
+      sourceText,
+      sourceHash: hashText(sourceText),
+    }))
+  }
+
+  private setStatusBarsBusy(isBusy: boolean) {
+    this.statusBars.forEach(statusBar => statusBar.setBusy(isBusy))
+  }
+
+  private ensureSavedDocumentPath(filePath: string) {
+    if (!filePath || filePath.startsWith('__') || !path.isAbsolute(filePath)) {
+      throw new Error(this.i18n.t.saveDocumentBeforeNewFileTranslation)
+    }
+    return filePath
+  }
+
+  private buildTranslatedFilePath(sourcePath: string, targetLanguage: string) {
+    const extension = path.extname(sourcePath)
+    const baseName = path.basename(sourcePath, extension)
+    const directory = path.dirname(sourcePath)
+    const normalizedSuffix = this.normalizeLanguageSuffix(targetLanguage)
+    return path.join(directory, `${baseName}_${normalizedSuffix}.md`)
+  }
+
+  private normalizeLanguageSuffix(targetLanguage: string) {
+    const normalized = targetLanguage
+      .trim()
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .find(Boolean)
+
+    return normalized || 'translated'
+  }
+
+  private async openTranslatedFileInRightSplit(filePath: string) {
+    try {
+      this.app.commands.run('core.workspace:split-right', [filePath])
+      await this.delay(80)
+      await this.app.openFile(filePath)
+      return
+    }
+    catch {
+      // Fall back to opening the file normally if split view is unavailable.
+    }
+
+    await this.app.openFile(filePath)
   }
 }

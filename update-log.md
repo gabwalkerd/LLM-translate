@@ -94,3 +94,33 @@
 - Changed files:
   - ` M src/main.ts`
 
+## 2026-04-23 22:14:06 +0800
+- Project root: `D:\GoCode\tranlate-plugin`
+- Total size bytes: 166423
+- Total size: 162.52 KB
+- File count: 21
+- Delta: +6220 bytes (+6.07 KB)
+- Label: settings UI polish and API format test button
+- Changed files:
+  - ` M src/i18n.ts`
+  - ` M src/main.ts`
+  - ` M src/setting-tab.ts`
+  - ` M src/style.scss`
+
+## 2026-04-23 22:34:04 +0800
+- Project root: `D:\GoCode\tranlate-plugin`
+- Total size bytes: 174926
+- Total size: 170.83 KB
+- File count: 21
+- Delta: +8503 bytes (+8.30 KB)
+- Label: new-file translation split view button
+- Changed files:
+  - ` M src/i18n.ts`
+  - ` M src/main.ts`
+  - ` M src/setting-tab.ts`
+  - ` M src/status-bar.ts`
+  - ` M src/style.scss`
+  - ` M src/translation/markdown.ts`
+  - ` M test/translation.test.ts`
+  - ` M update-log.md`
+

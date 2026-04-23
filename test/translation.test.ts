@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { extractAssistantContent, parseTranslationArray, renderPromptTemplate, resolveChatCompletionEndpoint } from '../src/translation/api'
-import { applyTranslationResults, buildTranslationPlan, buildTranslationBlock, createTranslationBatches } from '../src/translation/markdown'
+import { applyTranslationResults, buildStandaloneTranslationMarkdown, buildTranslationPlan, buildTranslationBlock, createTranslationBatches } from '../src/translation/markdown'
 import { hashText } from '../src/translation/hash'
 
 test('buildTranslationPlan detects eligible blocks and inserts translations after them', () => {
@@ -118,6 +118,39 @@ test('applyTranslationResults returns fresh memory entries for visible-clean bil
   assert.equal(result.memoryEntries[0].sourceHash, hashText('Alpha'))
   assert.equal(result.memoryEntries[0].translatedHash, hashText('阿尔法'))
   assert.equal(result.markdown, ['Alpha', '', '阿尔法', '', 'Beta', '', '贝塔'].join('\n'))
+})
+
+test('buildStandaloneTranslationMarkdown creates a translated-only document while keeping raw blocks', () => {
+  const markdown = [
+    '---',
+    'title: "Scalability"',
+    '---',
+    '',
+    '## Definition',
+    '',
+    'Hello world.',
+    '',
+    '```mermaid',
+    'flowchart LR',
+    '```',
+  ].join('\n')
+
+  const plan = buildTranslationPlan(markdown, 'zh-CN', false, [])
+  const translated = buildStandaloneTranslationMarkdown(plan, ['## 定义', '你好，世界。'])
+
+  assert.equal(translated, [
+    '---',
+    'title: "Scalability"',
+    '---',
+    '',
+    '## 定义',
+    '',
+    '你好，世界。',
+    '',
+    '```mermaid',
+    'flowchart LR',
+    '```',
+  ].join('\n'))
 })
 
 test('createTranslationBatches preserves order and size boundaries', () => {
