@@ -185,3 +185,26 @@
   - ` M test/translation.test.ts`
   - `?? src/selection-popover.ts`
 
+## 2026-04-25 00:08:46 +0800
+- Project root: `D:\GoCode\tranlates-plugin`
+- Total size bytes: 200713
+- Total size: 196.01 KB
+- File count: 22
+- Delta: +4640 bytes (+4.53 KB)
+- Label: Refine selection popover copy icon UI
+- Changed files:
+  - ` M src/selection-popover.ts`
+  - ` M src/style.scss`
+
+## 2026-04-25 00:13:29 +0800
+- Project root: `D:\GoCode\tranlates-plugin`
+- Total size bytes: 200470
+- Total size: 195.77 KB
+- File count: 22
+- Delta: -243 bytes (-243.00 B)
+- Label: Move selection copy icon into popover header
+- Changed files:
+  - ` M src/selection-popover.ts`
+  - ` M src/style.scss`
+  - ` M update-log.md`
+

@@ -16,8 +16,7 @@ export class SelectionTranslationPopover {
   private container?: HTMLDivElement
   private titleEl?: HTMLDivElement
   private closeButton?: HTMLButtonElement
-  private bodyEl?: HTMLDivElement
-  private actionsEl?: HTMLDivElement
+  private bodyTextEl?: HTMLDivElement
   private copyButton?: HTMLButtonElement
   private copyResetTimer?: number
   private copyHandler?: () => Promise<boolean>
@@ -37,16 +36,15 @@ export class SelectionTranslationPopover {
     this.ensureContainer()
     this.renderBase(labels)
 
-    if (!this.container || !this.bodyEl || !this.actionsEl || !this.copyButton) {
+    if (!this.container || !this.bodyTextEl || !this.copyButton) {
       return
     }
 
     this.container.hidden = false
     this.container.classList.add('is-loading')
-    this.bodyEl.textContent = labels.loading
+    this.bodyTextEl.textContent = labels.loading
     this.copyButton.hidden = true
     this.copyButton.disabled = true
-    this.actionsEl.hidden = true
     this.copyHandler = undefined
     this.updatePosition(anchor)
   }
@@ -56,17 +54,15 @@ export class SelectionTranslationPopover {
     this.ensureContainer()
     this.renderBase(labels)
 
-    if (!this.container || !this.bodyEl || !this.actionsEl || !this.copyButton) {
+    if (!this.container || !this.bodyTextEl || !this.copyButton) {
       return
     }
 
     this.container.hidden = false
     this.container.classList.remove('is-loading')
-    this.bodyEl.textContent = translation
+    this.bodyTextEl.textContent = translation
     this.copyButton.hidden = false
     this.copyButton.disabled = false
-    this.copyButton.textContent = labels.copy
-    this.actionsEl.hidden = false
     this.copyHandler = onCopy
     this.updatePosition(anchor)
   }
@@ -76,17 +72,16 @@ export class SelectionTranslationPopover {
     this.ensureContainer()
     this.renderBase(labels)
 
-    if (!this.container || !this.bodyEl || !this.actionsEl || !this.copyButton) {
+    if (!this.container || !this.bodyTextEl || !this.copyButton) {
       return
     }
 
     this.container.hidden = false
     this.container.classList.remove('is-loading')
-    this.bodyEl.textContent = message
-    this.bodyEl.classList.add('is-error')
+    this.bodyTextEl.textContent = message
+    this.bodyTextEl.classList.add('is-error')
     this.copyButton.hidden = true
     this.copyButton.disabled = true
-    this.actionsEl.hidden = true
     this.copyHandler = undefined
     this.updatePosition(anchor)
   }
@@ -113,8 +108,7 @@ export class SelectionTranslationPopover {
     this.container = undefined
     this.titleEl = undefined
     this.closeButton = undefined
-    this.bodyEl = undefined
-    this.actionsEl = undefined
+    this.bodyTextEl = undefined
     this.copyButton = undefined
   }
 
@@ -134,26 +128,16 @@ export class SelectionTranslationPopover {
     const header = document.createElement('div')
     header.className = 'typora-translate-selection-popover__header'
 
+    const titleGroup = document.createElement('div')
+    titleGroup.className = 'typora-translate-selection-popover__title-group'
+
     const title = document.createElement('div')
     title.className = 'typora-translate-selection-popover__title'
 
-    const closeButton = document.createElement('button')
-    closeButton.type = 'button'
-    closeButton.className = 'typora-translate-selection-popover__close'
-    closeButton.textContent = '×'
-    closeButton.addEventListener('click', () => this.closeHandler())
-
-    header.append(title, closeButton)
-
-    const body = document.createElement('div')
-    body.className = 'typora-translate-selection-popover__body'
-
-    const actions = document.createElement('div')
-    actions.className = 'typora-translate-selection-popover__actions'
-
     const copyButton = document.createElement('button')
     copyButton.type = 'button'
-    copyButton.className = 'typora-translate-selection-popover__action typora-translate-selection-popover__action--primary'
+    copyButton.className = 'typora-translate-selection-popover__copy'
+    copyButton.innerHTML = getCopyIcon()
     copyButton.addEventListener('click', async () => {
       if (!this.copyHandler || !this.copyButton || !this.labels) {
         return
@@ -164,31 +148,46 @@ export class SelectionTranslationPopover {
         return
       }
 
-      this.copyButton.textContent = this.labels.copied
+      this.copyButton.classList.add('is-copied')
+      this.copyButton.title = this.labels.copied
+      this.copyButton.setAttribute('aria-label', this.labels.copied)
       this.resetCopyButton(1400)
     })
 
-    actions.append(copyButton)
-    container.append(header, body, actions)
+    const closeButton = document.createElement('button')
+    closeButton.type = 'button'
+    closeButton.className = 'typora-translate-selection-popover__close'
+    closeButton.textContent = '×'
+    closeButton.addEventListener('click', () => this.closeHandler())
+
+    titleGroup.append(title, copyButton)
+    header.append(titleGroup, closeButton)
+
+    const body = document.createElement('div')
+    body.className = 'typora-translate-selection-popover__body'
+
+    const bodyText = document.createElement('div')
+    bodyText.className = 'typora-translate-selection-popover__body-text'
+    body.append(bodyText)
+    container.append(header, body)
     document.body.append(container)
 
     this.container = container
     this.titleEl = title
     this.closeButton = closeButton
-    this.bodyEl = body
-    this.actionsEl = actions
+    this.bodyTextEl = bodyText
     this.copyButton = copyButton
   }
 
   private renderBase(labels: SelectionPopoverLabels) {
-    if (!this.titleEl || !this.closeButton || !this.bodyEl) {
+    if (!this.titleEl || !this.closeButton || !this.bodyTextEl) {
       return
     }
 
     this.titleEl.textContent = labels.title
     this.closeButton.title = labels.close
     this.closeButton.setAttribute('aria-label', labels.close)
-    this.bodyEl.classList.remove('is-error')
+    this.bodyTextEl.classList.remove('is-error')
     this.resetCopyButton()
   }
 
@@ -205,13 +204,17 @@ export class SelectionTranslationPopover {
     if (delayMs > 0) {
       this.copyResetTimer = window.setTimeout(() => {
         if (this.copyButton && this.labels) {
-          this.copyButton.textContent = this.labels.copy
+          this.copyButton.classList.remove('is-copied')
+          this.copyButton.title = this.labels.copy
+          this.copyButton.setAttribute('aria-label', this.labels.copy)
         }
       }, delayMs)
       return
     }
 
-    this.copyButton.textContent = this.labels.copy
+    this.copyButton.classList.remove('is-copied')
+    this.copyButton.title = this.labels.copy
+    this.copyButton.setAttribute('aria-label', this.labels.copy)
   }
 
   private updatePosition(anchor: SelectionPopoverAnchor) {
@@ -239,4 +242,14 @@ export class SelectionTranslationPopover {
     this.container.style.left = `${Math.round(left)}px`
     this.container.style.top = `${Math.round(top)}px`
   }
+}
+
+function getCopyIcon() {
+  return [
+    '<svg viewBox="0 0 24 24" class="typora-translate-selection-popover__copy-icon" aria-hidden="true">',
+    '<path d="M9 7.75A1.75 1.75 0 0 1 10.75 6h7.5A1.75 1.75 0 0 1 20 7.75v9.5A1.75 1.75 0 0 1 18.25 19h-7.5A1.75 1.75 0 0 1 9 17.25v-9.5Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
+    '<path d="M15 6H8.75A1.75 1.75 0 0 0 7 7.75V15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.72"/>',
+    '<path d="M12.25 10.5h4.5M12.25 13.5h4.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
+    '</svg>',
+  ].join('')
 }
