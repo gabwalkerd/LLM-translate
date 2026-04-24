@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { extractAssistantContent, parseTranslationArray, renderPromptTemplate, resolveChatCompletionEndpoint } from '../src/translation/api'
 import { applyTranslationResults, buildStandaloneTranslationMarkdown, buildTranslationPlan, buildTranslationBlock, createTranslationBatches } from '../src/translation/markdown'
 import { hashText } from '../src/translation/hash'
+import { DEFAULT_SETTINGS, MAX_AUTO_TRANSLATE_DELAY_MS, normalizeAutoTranslateDelayMs } from '../src/settings'
 
 test('buildTranslationPlan detects eligible blocks and inserts translations after them', () => {
   const markdown = [
@@ -192,4 +193,14 @@ test('renderPromptTemplate and endpoint resolution normalize settings', () => {
   assert.equal(renderPromptTemplate('Translate to {targetLanguage}', 'en'), 'Translate to en')
   assert.equal(resolveChatCompletionEndpoint('https://example.com/v1/'), 'https://example.com/v1/chat/completions')
   assert.equal(resolveChatCompletionEndpoint('https://example.com/chat/completions'), 'https://example.com/chat/completions')
+})
+
+test('normalizeAutoTranslateDelayMs falls back to defaults for invalid values', () => {
+  assert.equal(normalizeAutoTranslateDelayMs(undefined), DEFAULT_SETTINGS.autoTranslateDelayMs)
+  assert.equal(normalizeAutoTranslateDelayMs('abc'), DEFAULT_SETTINGS.autoTranslateDelayMs)
+})
+
+test('normalizeAutoTranslateDelayMs clamps to supported bounds', () => {
+  assert.equal(normalizeAutoTranslateDelayMs(-80), 0)
+  assert.equal(normalizeAutoTranslateDelayMs(MAX_AUTO_TRANSLATE_DELAY_MS + 500), MAX_AUTO_TRANSLATE_DELAY_MS)
 })

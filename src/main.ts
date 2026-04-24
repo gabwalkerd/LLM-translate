@@ -2,8 +2,15 @@ import './style.scss'
 import { fs, Notice, path, Plugin, PluginSettings } from '@typora-community-plugin/core'
 import { editor, File, getMarkdown, isInputComponent, JSBridge } from 'typora'
 import { i18n } from './i18n'
+import { SelectionTranslationPopover, type SelectionPopoverAnchor } from './selection-popover'
 import { TranslationSettingTab } from './setting-tab'
-import { DEFAULT_SETTINGS, SETTINGS_VERSION, type TranslationMemoryState, type TranslationPluginSettings } from './settings'
+import {
+  DEFAULT_SETTINGS,
+  SETTINGS_VERSION,
+  normalizeAutoTranslateDelayMs,
+  type TranslationMemoryState,
+  type TranslationPluginSettings,
+} from './settings'
 import { StatusBarButton } from './status-bar'
 import { translateInBatches } from './translation/api'
 import { applyTranslationResults, buildStandaloneTranslationMarkdown, buildTranslationBlock, buildTranslationPlan } from './translation/markdown'
@@ -17,6 +24,11 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
   private statusBars: StatusBarButton[] = []
   private hasWarnedAboutStatusBar = false
   private lastFileOpenAt = 0
+  private selectionPopover = new SelectionTranslationPopover()
+  private autoTranslateTimer?: number
+  private autoTranslateRequestVersion = 0
+  private autoTranslateActiveRange?: Range
+  private autoTranslateActiveSignature = ''
 
   async onload() {
     this.registerSettings(new PluginSettings(this.app, this.manifest, {
@@ -27,8 +39,11 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
     this.registerSettingTab(new TranslationSettingTab(this))
     this.registerCommands()
     this.setupStatusBar()
+    this.selectionPopover.setOnClose(() => this.dismissSelectionPopover())
+    this.setupAutoTranslateSelection()
 
     const remount = () => {
+      this.dismissSelectionPopover()
       this.lastFileOpenAt = Date.now()
       setTimeout(() => {
         const mounted = this.statusBars.some(statusBar => statusBar.mount())
@@ -45,6 +60,8 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
   }
 
   onunload() {
+    this.dismissSelectionPopover()
+    this.selectionPopover.destroy()
     this.statusBars.forEach(statusBar => statusBar.stop())
   }
 
@@ -239,6 +256,12 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
     return true
   }
 
+  handleAutoTranslateSelectionToggle(enabled: boolean) {
+    if (!enabled) {
+      this.dismissSelectionPopover()
+    }
+  }
+
   private registerCommands() {
     this.registerCommand({
       id: 'translate-document',
@@ -304,6 +327,8 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
       targetLanguage: this.settings.get('targetLanguage').trim() || DEFAULT_SETTINGS.targetLanguage,
       systemPromptTemplate: this.settings.get('systemPromptTemplate').trim() || DEFAULT_SETTINGS.systemPromptTemplate,
       batchCharLimit: this.settings.get('batchCharLimit'),
+      autoTranslateSelection: Boolean(this.settings.get('autoTranslateSelection')),
+      autoTranslateDelayMs: normalizeAutoTranslateDelayMs(this.settings.get('autoTranslateDelayMs')),
       translationMemory: this.settings.get('translationMemory'),
     }
   }
@@ -463,9 +488,10 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
   private async tryWriteClipboard(text: string) {
     try {
       await navigator.clipboard.writeText(text)
+      return true
     }
     catch {
-      // Best effort only. Clipboard restore failure should not block translation.
+      return false
     }
   }
 
@@ -475,6 +501,230 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
 
   private async delay(ms: number) {
     await new Promise<void>(resolve => setTimeout(resolve, ms))
+  }
+
+  private setupAutoTranslateSelection() {
+    const schedule = () => {
+      this.scheduleAutoTranslateSelection()
+    }
+    const dismissIfOutside = (event: MouseEvent) => {
+      if (this.selectionPopover.contains(event.target)) {
+        return
+      }
+
+      this.clearAutoTranslateTimer()
+      if (this.selectionPopover.visible) {
+        this.dismissSelectionPopover()
+      }
+    }
+    const clearIfCollapsed = () => {
+      const selection = window.getSelection()
+      if (!selection || selection.isCollapsed) {
+        this.clearAutoTranslateTimer()
+      }
+    }
+    const reposition = () => {
+      this.repositionSelectionPopover()
+    }
+    const dismissOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && this.selectionPopover.visible) {
+        this.dismissSelectionPopover()
+      }
+    }
+
+    document.addEventListener('mouseup', schedule, true)
+    document.addEventListener('keyup', schedule, true)
+    document.addEventListener('mousedown', dismissIfOutside, true)
+    document.addEventListener('selectionchange', clearIfCollapsed)
+    document.addEventListener('keydown', dismissOnEscape, true)
+    window.addEventListener('resize', reposition)
+    window.addEventListener('scroll', reposition, true)
+
+    this.register(() => document.removeEventListener('mouseup', schedule, true))
+    this.register(() => document.removeEventListener('keyup', schedule, true))
+    this.register(() => document.removeEventListener('mousedown', dismissIfOutside, true))
+    this.register(() => document.removeEventListener('selectionchange', clearIfCollapsed))
+    this.register(() => document.removeEventListener('keydown', dismissOnEscape, true))
+    this.register(() => window.removeEventListener('resize', reposition))
+    this.register(() => window.removeEventListener('scroll', reposition, true))
+    this.register(() => this.selectionPopover.destroy())
+  }
+
+  private scheduleAutoTranslateSelection() {
+    if (!this.settings.get('autoTranslateSelection')) {
+      return
+    }
+
+    const snapshot = this.getEditorSelectionSnapshot()
+    if (!snapshot) {
+      this.clearAutoTranslateTimer()
+      return
+    }
+
+    if (this.selectionPopover.visible && this.autoTranslateActiveSignature === snapshot.signature) {
+      this.autoTranslateActiveRange = snapshot.range
+      this.repositionSelectionPopover()
+      return
+    }
+
+    this.clearAutoTranslateTimer()
+    this.autoTranslateTimer = window.setTimeout(() => {
+      void this.runAutoTranslateSelection(snapshot.text, snapshot.range, snapshot.signature)
+    }, normalizeAutoTranslateDelayMs(this.settings.get('autoTranslateDelayMs')))
+  }
+
+  private async runAutoTranslateSelection(selectedText: string, range: Range, signature: string) {
+    const anchor = this.getSelectionPopoverAnchor(range)
+    if (!anchor) {
+      return
+    }
+
+    const settings = this.snapshotSettings()
+    const requestVersion = ++this.autoTranslateRequestVersion
+    this.autoTranslateActiveRange = range
+    this.autoTranslateActiveSignature = signature
+
+    const labels = {
+      title: this.i18n.t.selectionPopoverTitle,
+      loading: this.i18n.t.selectionPopoverLoading,
+      copy: this.i18n.t.selectionPopoverCopy,
+      copied: this.i18n.t.selectionPopoverCopied,
+      close: this.i18n.t.selectionPopoverClose,
+    }
+
+    if (!settings.baseUrl || !settings.apiKey || !settings.model) {
+      this.selectionPopover.showError(anchor, this.i18n.t.missingConfig, labels)
+      return
+    }
+    if (!Number.isInteger(settings.batchCharLimit) || settings.batchCharLimit <= 0) {
+      this.selectionPopover.showError(anchor, this.i18n.t.invalidBatchLimit, labels)
+      return
+    }
+
+    this.selectionPopover.showLoading(anchor, labels)
+
+    try {
+      const translatedTexts = await translateInBatches(settings, [{
+        sourceText: selectedText,
+        sourceHash: hashText(selectedText),
+      }])
+
+      if (requestVersion !== this.autoTranslateRequestVersion) {
+        return
+      }
+
+      const translated = translatedTexts[0]
+      const latestAnchor = this.getSelectionPopoverAnchor(this.autoTranslateActiveRange ?? range) ?? anchor
+      this.selectionPopover.showResult(
+        latestAnchor,
+        translated,
+        labels,
+        async () => {
+          const copied = await this.tryWriteClipboard(translated)
+          if (!copied) {
+            new Notice(this.i18n.t.selectionPopoverCopyFailure)
+          }
+          return copied
+        },
+      )
+    }
+    catch (error) {
+      if (requestVersion !== this.autoTranslateRequestVersion) {
+        return
+      }
+
+      const latestAnchor = this.getSelectionPopoverAnchor(this.autoTranslateActiveRange ?? range) ?? anchor
+      const message = error instanceof Error ? error.message : String(error)
+      this.selectionPopover.showError(latestAnchor, this.i18n.t.translateFailure.replace('{message}', message), labels)
+    }
+  }
+
+  private getEditorSelectionSnapshot() {
+    if (isInputComponent(document.activeElement) || this.isTranslating) {
+      return undefined
+    }
+
+    const selection = window.getSelection()
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+      return undefined
+    }
+
+    const range = selection.getRangeAt(0).cloneRange()
+    const text = selection.toString().trim()
+    if (!text || !this.isRangeInsideEditor(range)) {
+      return undefined
+    }
+
+    return {
+      text,
+      range,
+      signature: hashText(text),
+    }
+  }
+
+  private isRangeInsideEditor(range: Range) {
+    const editorRoot = document.querySelector('#write')
+    if (!editorRoot) {
+      return false
+    }
+
+    const container = range.commonAncestorContainer.nodeType === Node.TEXT_NODE
+      ? range.commonAncestorContainer.parentElement
+      : range.commonAncestorContainer
+
+    return !!container && editorRoot.contains(container)
+  }
+
+  private getSelectionPopoverAnchor(range: Range): SelectionPopoverAnchor | undefined {
+    if (!document.contains(range.commonAncestorContainer)) {
+      return undefined
+    }
+
+    const rects = Array.from(range.getClientRects()).filter(rect => rect.width > 0 || rect.height > 0)
+    const firstRect = rects[0]
+    const lastRect = rects.at(-1)
+    const boundingRect = range.getBoundingClientRect()
+    const referenceRect = lastRect ?? boundingRect
+    const left = firstRect?.left ?? boundingRect.left
+
+    if ((!referenceRect.width && !referenceRect.height) || Number.isNaN(left)) {
+      return undefined
+    }
+
+    return {
+      top: referenceRect.top,
+      bottom: referenceRect.bottom,
+      left,
+    }
+  }
+
+  private clearAutoTranslateTimer() {
+    if (this.autoTranslateTimer) {
+      window.clearTimeout(this.autoTranslateTimer)
+      this.autoTranslateTimer = undefined
+    }
+  }
+
+  private dismissSelectionPopover() {
+    this.clearAutoTranslateTimer()
+    this.autoTranslateRequestVersion += 1
+    this.autoTranslateActiveRange = undefined
+    this.autoTranslateActiveSignature = ''
+    this.selectionPopover.hide()
+  }
+
+  private repositionSelectionPopover() {
+    if (!this.selectionPopover.visible || !this.autoTranslateActiveRange) {
+      return
+    }
+
+    const anchor = this.getSelectionPopoverAnchor(this.autoTranslateActiveRange)
+    if (!anchor) {
+      this.dismissSelectionPopover()
+      return
+    }
+
+    this.selectionPopover.update(anchor)
   }
 
   private createApiProbeTasks(): TranslationTask[] {

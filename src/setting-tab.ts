@@ -1,7 +1,7 @@
 import { Notice } from '@typora-community-plugin/core'
 import { SettingTab } from '@typora-community-plugin/core'
 import type BilingualTranslatePlugin from './main'
-import { DEFAULT_SETTINGS } from './settings'
+import { DEFAULT_SETTINGS, MAX_AUTO_TRANSLATE_DELAY_MS, normalizeAutoTranslateDelayMs } from './settings'
 
 export class TranslationSettingTab extends SettingTab {
   get name() {
@@ -84,6 +84,42 @@ export class TranslationSettingTab extends SettingTab {
     })
 
     this.addSettingTitle(t.settingsSectionTranslation)
+
+    this.addSetting(setting => {
+      setting.addName(t.autoTranslateSelectionName)
+      setting.addDescription(t.autoTranslateSelectionDesc)
+      setting.addCheckbox(input => {
+        input.checked = Boolean(settings.get('autoTranslateSelection'))
+        input.onchange = () => {
+          settings.set('autoTranslateSelection', input.checked)
+          this.plugin.handleAutoTranslateSelectionToggle(input.checked)
+        }
+      })
+    })
+
+    this.addSetting(setting => {
+      setting.addName(t.autoTranslateDelayName)
+      setting.addDescription(t.autoTranslateDelayDesc)
+
+      const value = document.createElement('span')
+      value.className = 'typora-translate-range-value'
+      value.textContent = `${normalizeAutoTranslateDelayMs(settings.get('autoTranslateDelayMs'))} ms`
+      setting.controls.append(value)
+
+      setting.addInput('range', input => {
+        input.className = 'typora-translate-range-input'
+        input.min = '0'
+        input.max = String(MAX_AUTO_TRANSLATE_DELAY_MS)
+        input.step = '50'
+        input.value = String(normalizeAutoTranslateDelayMs(settings.get('autoTranslateDelayMs')))
+        input.oninput = () => {
+          const normalized = normalizeAutoTranslateDelayMs(input.value)
+          input.value = String(normalized)
+          value.textContent = `${normalized} ms`
+          settings.set('autoTranslateDelayMs', normalized)
+        }
+      })
+    })
 
     this.addSetting(setting => {
       setting.addName(t.targetLanguageName)

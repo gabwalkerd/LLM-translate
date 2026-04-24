@@ -7,6 +7,8 @@ export interface TranslationPluginSettings {
   targetLanguage: string
   systemPromptTemplate: string
   batchCharLimit: number
+  autoTranslateSelection: boolean
+  autoTranslateDelayMs: number
   translationMemory: TranslationMemoryState
 }
 
@@ -16,7 +18,8 @@ export interface TranslationMemoryState {
   }
 }
 
-export const SETTINGS_VERSION = 2
+export const SETTINGS_VERSION = 3
+export const MAX_AUTO_TRANSLATE_DELAY_MS = 2000
 
 export const DEFAULT_PROMPT_TEMPLATE = [
   'You are a professional translation engine.',
@@ -33,5 +36,19 @@ export const DEFAULT_SETTINGS: TranslationPluginSettings = {
   targetLanguage: 'zh-CN',
   systemPromptTemplate: DEFAULT_PROMPT_TEMPLATE,
   batchCharLimit: 4000,
+  autoTranslateSelection: false,
+  autoTranslateDelayMs: 300,
   translationMemory: {},
+}
+
+export function normalizeAutoTranslateDelayMs(value: number | string | undefined) {
+  const parsed = typeof value === 'number'
+    ? value
+    : Number.parseInt(String(value ?? ''), 10)
+
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_SETTINGS.autoTranslateDelayMs
+  }
+
+  return Math.max(0, Math.min(MAX_AUTO_TRANSLATE_DELAY_MS, Math.round(parsed)))
 }

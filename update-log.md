@@ -169,3 +169,19 @@
   - ` M src/style.scss`
   - ` M update-log.md`
 
+## 2026-04-24 23:52:01 +0800
+- Project root: `D:\GoCode\tranlates-plugin`
+- Total size bytes: 196073
+- Total size: 191.48 KB
+- File count: 22
+- Delta: +21581 bytes (+21.08 KB)
+- Label: Add selection auto-translate popup
+- Changed files:
+  - ` M src/i18n.ts`
+  - ` M src/main.ts`
+  - ` M src/setting-tab.ts`
+  - ` M src/settings.ts`
+  - ` M src/style.scss`
+  - ` M test/translation.test.ts`
+  - `?? src/selection-popover.ts`
+

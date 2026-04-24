@@ -73,3 +73,129 @@
 .typora-translate-busy * {
   cursor: progress !important;
 }
+
+.typora-translate-range-input {
+  accent-color: var(--active-file-border-color);
+  margin-left: 10px;
+  width: 200px;
+}
+
+.typora-translate-range-value {
+  color: inherit;
+  font-size: 12px;
+  min-width: 56px;
+  opacity: 0.72;
+  text-align: right;
+}
+
+.typora-translate-selection-popover {
+  background: color-mix(in srgb, var(--bg-color) 94%, black 6%);
+  border: 1px solid var(--panel-border-color);
+  border-radius: 14px;
+  box-shadow:
+    0 18px 42px rgb(0 0 0 / 0.28),
+    0 4px 14px rgb(0 0 0 / 0.18);
+  color: inherit;
+  left: 12px;
+  max-width: min(560px, calc(100vw - 24px));
+  position: fixed;
+  top: 12px;
+  width: min(560px, calc(100vw - 24px));
+  z-index: 10000;
+}
+
+.typora-translate-selection-popover__header {
+  align-items: center;
+  border-bottom: 1px solid var(--panel-border-color);
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 14px 16px 12px;
+}
+
+.typora-translate-selection-popover__title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.typora-translate-selection-popover__close {
+  appearance: none;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  color: inherit;
+  cursor: pointer;
+  font-size: 28px;
+  height: 36px;
+  line-height: 1;
+  opacity: 0.7;
+  width: 36px;
+}
+
+.typora-translate-selection-popover__close:hover {
+  background: color-mix(in srgb, var(--bg-color) 78%, white 22%);
+  opacity: 1;
+}
+
+.typora-translate-selection-popover__body {
+  font-size: 15px;
+  line-height: 1.7;
+  max-height: min(40vh, 360px);
+  overflow: auto;
+  padding: 16px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.typora-translate-selection-popover__body.is-error {
+  color: #d46a6a;
+}
+
+.typora-translate-selection-popover__actions {
+  border-top: 1px solid var(--panel-border-color);
+  display: flex;
+  gap: 10px;
+  justify-content: flex-start;
+  padding: 12px 16px 14px;
+}
+
+.typora-translate-selection-popover__action {
+  appearance: none;
+  background: color-mix(in srgb, var(--bg-color) 82%, white 18%);
+  border: 1px solid var(--panel-border-color);
+  border-radius: 10px;
+  color: inherit;
+  cursor: pointer;
+  font-size: 14px;
+  min-width: 84px;
+  padding: 8px 14px;
+  transition: transform 120ms ease, opacity 120ms ease, border-color 120ms ease;
+}
+
+.typora-translate-selection-popover__action:hover {
+  border-color: var(--active-file-border-color);
+  transform: translateY(-1px);
+}
+
+.typora-translate-selection-popover__action--primary {
+  background: color-mix(in srgb, var(--active-file-border-color) 16%, var(--bg-color));
+}
+
+.typora-translate-selection-popover.is-loading .typora-translate-selection-popover__body::after {
+  animation: typora-translate-selection-popover-blink 1s infinite;
+  content: '...';
+  display: inline-block;
+  margin-left: 2px;
+}
+
+@keyframes typora-translate-selection-popover-blink {
+  0%,
+  80%,
+  100% {
+    opacity: 0.2;
+  }
+
+  40% {
+    opacity: 1;
+  }
+}
