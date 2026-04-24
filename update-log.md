@@ -208,3 +208,15 @@
   - ` M src/style.scss`
   - ` M update-log.md`
 
+## 2026-04-25 00:20:48 +0800
+- Project root: `D:\GoCode\tranlates-plugin`
+- Total size bytes: 202739
+- Total size: 197.99 KB
+- File count: 22
+- Delta: +2269 bytes (+2.22 KB)
+- Label: Fix copy icon interaction and clipboard fallback
+- Changed files:
+  - ` M src/main.ts`
+  - ` M src/selection-popover.ts`
+  - ` M src/style.scss`
+

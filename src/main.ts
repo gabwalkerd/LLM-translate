@@ -486,12 +486,96 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
   }
 
   private async tryWriteClipboard(text: string) {
+    if (await this.tryWriteClipboardWithNavigator(text)) {
+      return true
+    }
+
+    if (this.tryWriteClipboardWithUserOp(text)) {
+      return true
+    }
+
+    if (await this.tryWriteClipboardWithBridge(text)) {
+      return true
+    }
+
+    if (this.tryWriteClipboardWithExecCommand(text)) {
+      return true
+    }
+
+    return false
+  }
+
+  private async tryWriteClipboardWithNavigator(text: string) {
     try {
       await navigator.clipboard.writeText(text)
       return true
     }
     catch {
       return false
+    }
+  }
+
+  private tryWriteClipboardWithUserOp(text: string) {
+    try {
+      if (typeof editor.UserOp?.setClipboard !== 'function') {
+        return false
+      }
+
+      editor.UserOp.setClipboard(null, null, text, true)
+      return true
+    }
+    catch {
+      return false
+    }
+  }
+
+  private async tryWriteClipboardWithBridge(text: string) {
+    try {
+      await JSBridge.invoke('clipboard.write', JSON.stringify({ text }))
+      return true
+    }
+    catch {
+      return false
+    }
+  }
+
+  private tryWriteClipboardWithExecCommand(text: string) {
+    const selection = window.getSelection()
+    const ranges = selection
+      ? Array.from({ length: selection.rangeCount }, (_, index) => selection.getRangeAt(index).cloneRange())
+      : []
+    const activeElement = document.activeElement instanceof HTMLElement ? document.activeElement : undefined
+    const textarea = document.createElement('textarea')
+    textarea.value = text
+    textarea.setAttribute('readonly', 'true')
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    textarea.style.pointerEvents = 'none'
+    textarea.style.left = '-9999px'
+    textarea.style.top = '0'
+
+    document.body.appendChild(textarea)
+    textarea.focus()
+    textarea.select()
+    textarea.setSelectionRange(0, textarea.value.length)
+
+    try {
+      return document.execCommand('copy')
+    }
+    catch {
+      return false
+    }
+    finally {
+      textarea.remove()
+
+      if (selection) {
+        selection.removeAllRanges()
+        for (const range of ranges) {
+          selection.addRange(range)
+        }
+      }
+
+      activeElement?.focus()
     }
   }
 
@@ -504,8 +588,8 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
   }
 
   private setupAutoTranslateSelection() {
-    const schedule = () => {
-      this.scheduleAutoTranslateSelection()
+    const schedule = (event: Event) => {
+      this.scheduleAutoTranslateSelection(event)
     }
     const dismissIfOutside = (event: MouseEvent) => {
       if (this.selectionPopover.contains(event.target)) {
@@ -550,8 +634,12 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
     this.register(() => this.selectionPopover.destroy())
   }
 
-  private scheduleAutoTranslateSelection() {
+  private scheduleAutoTranslateSelection(triggerEvent?: Event) {
     if (!this.settings.get('autoTranslateSelection')) {
+      return
+    }
+
+    if (triggerEvent && this.selectionPopover.contains(triggerEvent.target)) {
       return
     }
 

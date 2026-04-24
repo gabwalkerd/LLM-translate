@@ -138,6 +138,9 @@ export class SelectionTranslationPopover {
     copyButton.type = 'button'
     copyButton.className = 'typora-translate-selection-popover__copy'
     copyButton.innerHTML = getCopyIcon()
+    copyButton.addEventListener('mousedown', event => {
+      event.preventDefault()
+    })
     copyButton.addEventListener('click', async () => {
       if (!this.copyHandler || !this.copyButton || !this.labels) {
         return
@@ -158,6 +161,9 @@ export class SelectionTranslationPopover {
     closeButton.type = 'button'
     closeButton.className = 'typora-translate-selection-popover__close'
     closeButton.textContent = '×'
+    closeButton.addEventListener('mousedown', event => {
+      event.preventDefault()
+    })
     closeButton.addEventListener('click', () => this.closeHandler())
 
     titleGroup.append(title, copyButton)
