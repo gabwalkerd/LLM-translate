@@ -316,11 +316,6 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
   }
 
   private buildSelectionReplacement(sourceMarkdown: string, translatedMarkdown: string, targetLanguage: string, sourceHash: string) {
-    if (!/[\r\n]/.test(sourceMarkdown.trim())) {
-      const compactTranslation = translatedMarkdown.replace(/\s+/g, ' ').trim()
-      return `${sourceMarkdown}（${this.i18n.t.selectionInlinePrefix}：${compactTranslation}）`
-    }
-
     return `${sourceMarkdown}\n\n${buildTranslationBlock(translatedMarkdown, targetLanguage, sourceHash)}`
   }
 
