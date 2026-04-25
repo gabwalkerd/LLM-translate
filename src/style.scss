@@ -162,7 +162,8 @@
   color: #d46a6a;
 }
 
-.typora-translate-selection-popover__copy {
+.typora-translate-selection-popover__copy,
+.typora-translate-selection-popover__insert {
   appearance: none;
   align-items: center;
   background: transparent;
@@ -180,8 +181,14 @@
   opacity: 0.62;
 }
 
-.typora-translate-selection-popover__copy:hover {
+.typora-translate-selection-popover__copy:hover,
+.typora-translate-selection-popover__insert:hover {
   opacity: 1;
+}
+
+.typora-translate-selection-popover__insert:disabled {
+  cursor: wait;
+  opacity: 0.38;
 }
 
 .typora-translate-selection-popover__copy.is-copied {
@@ -189,7 +196,8 @@
   opacity: 1;
 }
 
-.typora-translate-selection-popover__copy-icon {
+.typora-translate-selection-popover__copy-icon,
+.typora-translate-selection-popover__insert-icon {
   display: block;
   height: 21px;
   width: 21px;

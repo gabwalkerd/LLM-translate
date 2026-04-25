@@ -83,9 +83,9 @@ type StatusButtonVariant = 'inline' | 'new-file'
 
 function getDictionaryIcon(isBusy: boolean, variant: StatusButtonVariant) {
   if (variant === 'new-file') {
-    return isBusy ? getBusyDictionaryIcon() : getIdleDictionaryIcon()
+    return isBusy ? getBusyNewFileDictionaryIcon() : getIdleNewFileDictionaryIcon()
   }
-  return isBusy ? getBusyNewFileDictionaryIcon() : getIdleNewFileDictionaryIcon()
+  return isBusy ? getBusyDictionaryIcon() : getIdleDictionaryIcon()
 }
 
 function getIdleDictionaryIcon() {

@@ -233,3 +233,30 @@
   - ` M src/style.scss`
   - `?? CLAUDE.md`
 
+## 2026-04-25 12:13:40 +0800
+- Project root: `D:\GoCode\tranlates-plugin`
+- Total size bytes: 208175
+- Total size: 203.30 KB
+- File count: 23
+- Delta: -21 bytes (-21.00 B)
+- Label: Clarify status bar translation actions
+- Changed files:
+  - ` M src/i18n.ts`
+  - ` M src/main.ts`
+  - ` M src/status-bar.ts`
+
+## 2026-04-25 12:24:09 +0800
+- Project root: `D:\GoCode\tranlates-plugin`
+- Total size bytes: 212754
+- Total size: 207.77 KB
+- File count: 23
+- Delta: +4579 bytes (+4.47 KB)
+- Label: Move selection insertion into popup controls
+- Changed files:
+  - ` M src/i18n.ts`
+  - ` M src/main.ts`
+  - ` M src/selection-popover.ts`
+  - ` M src/status-bar.ts`
+  - ` M src/style.scss`
+  - ` M update-log.md`
+

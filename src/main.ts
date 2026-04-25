@@ -263,6 +263,20 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
     }
   }
 
+  toggleSelectionPopover() {
+    const enabled = !this.settings.get('autoTranslateSelection')
+    this.settings.set('autoTranslateSelection', enabled)
+
+    if (enabled) {
+      new Notice(this.i18n.t.selectionPopoverEnabled)
+      this.scheduleAutoTranslateSelection()
+      return
+    }
+
+    this.dismissSelectionPopover()
+    new Notice(this.i18n.t.selectionPopoverDisabled)
+  }
+
   private registerCommands() {
     this.registerCommand({
       id: 'translate-document',
@@ -270,14 +284,6 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
       scope: 'editor',
       hotkey: 'Alt+Ctrl+T',
       callback: () => this.translateDocument(false),
-    })
-
-    this.registerCommand({
-      id: 'translate-selection',
-      title: this.i18n.t.translateSelection,
-      scope: 'editor',
-      hotkey: 'Alt+Shift+Ctrl+T',
-      callback: () => this.translateSelection(),
     })
 
     this.registerCommand({
@@ -293,16 +299,20 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
       scope: 'editor',
       callback: () => this.translateDocumentToNewFile(),
     })
+
+    this.registerCommand({
+      id: 'toggle-selection-popover',
+      title: this.i18n.t.toggleSelectionPopover,
+      scope: 'editor',
+      hotkey: 'Alt+Shift+Ctrl+T',
+      callback: () => this.toggleSelectionPopover(),
+    })
   }
 
   private setupStatusBar() {
     const inlineStatusBar = new StatusBarButton(
       () => this.isTranslating ? this.i18n.t.statusButtonBusy : this.i18n.t.statusButton,
       () => {
-        if (this.hasActiveSelection()) {
-          void this.translateSelection()
-          return
-        }
         void this.translateDocument(false)
       },
       'inline',
@@ -695,6 +705,7 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
       title: this.i18n.t.selectionPopoverTitle,
       loading: this.i18n.t.selectionPopoverLoading,
       copy: this.i18n.t.selectionPopoverCopy,
+      insert: this.i18n.t.selectionPopoverInsert,
       copied: this.i18n.t.selectionPopoverCopied,
       close: this.i18n.t.selectionPopoverClose,
     }
@@ -728,6 +739,9 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
         labels,
         async () => {
           return this.copyTextToClipboard(translated)
+        },
+        async () => {
+          return this.insertSelectionTranslationFromPopover(selectedText, translated, settings.targetLanguage)
         },
       )
     }
@@ -814,6 +828,44 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
     this.autoTranslateActiveRange = undefined
     this.autoTranslateActiveSignature = ''
     this.selectionPopover.hide()
+  }
+
+  private async insertSelectionTranslationFromPopover(sourceText: string, translatedText: string, targetLanguage: string) {
+    return this.withAutoTranslateSuppressed(async () => {
+      const range = this.autoTranslateActiveRange
+      if (!range || !document.contains(range.commonAncestorContainer)) {
+        new Notice(this.i18n.t.noSelection)
+        return false
+      }
+
+      this.restoreSelectionRange(range)
+      await this.nextFrame()
+
+      let sourceMarkdown = sourceText
+      try {
+        sourceMarkdown = await this.captureSelectionMarkdown()
+      }
+      catch {
+        // Use the already translated selected text when Typora cannot expose
+        // the Markdown source for the preserved selection.
+      }
+
+      const sourceHash = hashText(sourceMarkdown)
+      const replacement = this.buildSelectionReplacement(sourceMarkdown, translatedText, targetLanguage, sourceHash)
+      editor.UserOp.backspaceHandler(editor, null, 'Delete')
+      editor.UserOp.pasteHandler(editor, replacement, true)
+      return true
+    })
+  }
+
+  private restoreSelectionRange(range: Range) {
+    const selection = window.getSelection()
+    if (!selection) {
+      return
+    }
+
+    selection.removeAllRanges()
+    selection.addRange(range)
   }
 
   private async withAutoTranslateSuppressed<T>(operation: () => Promise<T>) {

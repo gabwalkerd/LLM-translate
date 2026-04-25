@@ -8,6 +8,7 @@ interface SelectionPopoverLabels {
   title: string
   loading: string
   copy: string
+  insert: string
   copied: string
   close: string
 }
@@ -18,8 +19,10 @@ export class SelectionTranslationPopover {
   private closeButton?: HTMLButtonElement
   private bodyTextEl?: HTMLDivElement
   private copyButton?: HTMLButtonElement
+  private insertButton?: HTMLButtonElement
   private copyResetTimer?: number
   private copyHandler?: () => Promise<boolean>
+  private insertHandler?: () => Promise<boolean>
   private closeHandler: () => void = () => this.hide()
   private labels?: SelectionPopoverLabels
 
@@ -44,7 +47,7 @@ export class SelectionTranslationPopover {
     this.ensureContainer()
     this.renderBase(labels)
 
-    if (!this.container || !this.bodyTextEl || !this.copyButton) {
+    if (!this.container || !this.bodyTextEl || !this.copyButton || !this.insertButton) {
       return
     }
 
@@ -53,16 +56,25 @@ export class SelectionTranslationPopover {
     this.bodyTextEl.textContent = labels.loading
     this.copyButton.hidden = true
     this.copyButton.disabled = true
+    this.insertButton.hidden = true
+    this.insertButton.disabled = true
     this.copyHandler = undefined
+    this.insertHandler = undefined
     this.updatePosition(anchor)
   }
 
-  showResult(anchor: SelectionPopoverAnchor, translation: string, labels: SelectionPopoverLabels, onCopy: () => Promise<boolean>) {
+  showResult(
+    anchor: SelectionPopoverAnchor,
+    translation: string,
+    labels: SelectionPopoverLabels,
+    onCopy: () => Promise<boolean>,
+    onInsert: () => Promise<boolean>,
+  ) {
     this.labels = labels
     this.ensureContainer()
     this.renderBase(labels)
 
-    if (!this.container || !this.bodyTextEl || !this.copyButton) {
+    if (!this.container || !this.bodyTextEl || !this.copyButton || !this.insertButton) {
       return
     }
 
@@ -71,7 +83,10 @@ export class SelectionTranslationPopover {
     this.bodyTextEl.textContent = translation
     this.copyButton.hidden = false
     this.copyButton.disabled = false
+    this.insertButton.hidden = false
+    this.insertButton.disabled = false
     this.copyHandler = onCopy
+    this.insertHandler = onInsert
     this.updatePosition(anchor)
   }
 
@@ -80,7 +95,7 @@ export class SelectionTranslationPopover {
     this.ensureContainer()
     this.renderBase(labels)
 
-    if (!this.container || !this.bodyTextEl || !this.copyButton) {
+    if (!this.container || !this.bodyTextEl || !this.copyButton || !this.insertButton) {
       return
     }
 
@@ -90,7 +105,10 @@ export class SelectionTranslationPopover {
     this.bodyTextEl.classList.add('is-error')
     this.copyButton.hidden = true
     this.copyButton.disabled = true
+    this.insertButton.hidden = true
+    this.insertButton.disabled = true
     this.copyHandler = undefined
+    this.insertHandler = undefined
     this.updatePosition(anchor)
   }
 
@@ -118,6 +136,7 @@ export class SelectionTranslationPopover {
     this.closeButton = undefined
     this.bodyTextEl = undefined
     this.copyButton = undefined
+    this.insertButton = undefined
   }
 
   setOnClose(handler: () => void) {
@@ -169,6 +188,31 @@ export class SelectionTranslationPopover {
       this.resetCopyButton(1400)
     })
 
+    const insertButton = document.createElement('button')
+    insertButton.type = 'button'
+    insertButton.className = 'typora-translate-selection-popover__insert'
+    insertButton.innerHTML = getInsertIcon()
+    insertButton.addEventListener('mousedown', event => {
+      event.preventDefault()
+      event.stopPropagation()
+    })
+    insertButton.addEventListener('click', async (event) => {
+      event.preventDefault()
+      event.stopPropagation()
+
+      if (!this.insertHandler || !this.insertButton) {
+        return
+      }
+
+      this.insertButton.disabled = true
+      const inserted = await this.insertHandler()
+      if (inserted) {
+        this.closeHandler()
+        return
+      }
+      this.insertButton.disabled = false
+    })
+
     const closeButton = document.createElement('button')
     closeButton.type = 'button'
     closeButton.className = 'typora-translate-selection-popover__close'
@@ -183,7 +227,7 @@ export class SelectionTranslationPopover {
       this.closeHandler()
     })
 
-    titleGroup.append(title, copyButton)
+    titleGroup.append(title, copyButton, insertButton)
     header.append(titleGroup, closeButton)
 
     const body = document.createElement('div')
@@ -200,6 +244,7 @@ export class SelectionTranslationPopover {
     this.closeButton = closeButton
     this.bodyTextEl = bodyText
     this.copyButton = copyButton
+    this.insertButton = insertButton
   }
 
   private renderBase(labels: SelectionPopoverLabels) {
@@ -238,6 +283,10 @@ export class SelectionTranslationPopover {
     this.copyButton.classList.remove('is-copied')
     this.copyButton.title = this.labels.copy
     this.copyButton.setAttribute('aria-label', this.labels.copy)
+    if (this.insertButton) {
+      this.insertButton.title = this.labels.insert
+      this.insertButton.setAttribute('aria-label', this.labels.insert)
+    }
   }
 
   private updatePosition(anchor: SelectionPopoverAnchor) {
@@ -273,6 +322,15 @@ function getCopyIcon() {
     '<path d="M9 7.75A1.75 1.75 0 0 1 10.75 6h7.5A1.75 1.75 0 0 1 20 7.75v9.5A1.75 1.75 0 0 1 18.25 19h-7.5A1.75 1.75 0 0 1 9 17.25v-9.5Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
     '<path d="M15 6H8.75A1.75 1.75 0 0 0 7 7.75V15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.72"/>',
     '<path d="M12.25 10.5h4.5M12.25 13.5h4.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
+    '</svg>',
+  ].join('')
+}
+
+function getInsertIcon() {
+  return [
+    '<svg viewBox="0 0 24 24" class="typora-translate-selection-popover__insert-icon" aria-hidden="true">',
+    '<path d="m6 6 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>',
+    '<path d="m6 12 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>',
     '</svg>',
   ].join('')
 }
