@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { extractAssistantContent, parseTranslationArray, renderPromptTemplate, resolveChatCompletionEndpoint } from '../src/translation/api'
-import { applyTranslationResults, buildStandaloneTranslationMarkdown, buildTranslationPlan, buildTranslationBlock, createTranslationBatches } from '../src/translation/markdown'
+import { applyTranslationResults, buildStandaloneTranslationMarkdown, buildTranslationPlan, buildTranslationBlock, createTranslationBatches, insertTranslationAfterMatchingBlock } from '../src/translation/markdown'
 import { hashText } from '../src/translation/hash'
 import { DEFAULT_SETTINGS, MAX_AUTO_TRANSLATE_DELAY_MS, normalizeAutoTranslateDelayMs } from '../src/settings'
 
@@ -151,6 +151,29 @@ test('buildStandaloneTranslationMarkdown creates a translated-only document whil
     '```mermaid',
     'flowchart LR',
     '```',
+  ].join('\n'))
+})
+
+test('insertTranslationAfterMatchingBlock inserts translation as a separate paragraph after the source block', () => {
+  const markdown = [
+    'A complete MapReduce computation is a **Job**, composed of **Map Tasks** and **Reduce Tasks**.',
+    '',
+    'Next paragraph.',
+  ].join('\n')
+
+  const inserted = insertTranslationAfterMatchingBlock(
+    markdown,
+    'MapReduce computation',
+    'MapReduce computation',
+    '一个完整的 MapReduce 计算称为一个作业（Job），由 Map 任务和 Reduce 任务组成。',
+  )
+
+  assert.equal(inserted, [
+    'A complete MapReduce computation is a **Job**, composed of **Map Tasks** and **Reduce Tasks**.',
+    '',
+    '一个完整的 MapReduce 计算称为一个作业（Job），由 Map 任务和 Reduce 任务组成。',
+    '',
+    'Next paragraph.',
   ].join('\n'))
 })
 

@@ -220,6 +220,31 @@ export function buildTranslationBlock(translatedText: string, _lang: string, _so
   return translatedText.replace(/\r\n/g, '\n').trim()
 }
 
+export function insertTranslationAfterMatchingBlock(
+  markdown: string,
+  selectedMarkdown: string,
+  selectedText: string,
+  translationBlock: string,
+) {
+  const normalizedMarkdown = markdown.replace(/\r\n/g, '\n')
+  const needles = Array.from(new Set([
+    selectedMarkdown.trim(),
+    selectedText.trim(),
+  ].filter(Boolean)))
+
+  for (const needle of needles) {
+    const matchIndex = normalizedMarkdown.indexOf(needle)
+    if (matchIndex === -1) {
+      continue
+    }
+
+    const blockEnd = findContainingMarkdownBlockEnd(normalizedMarkdown, matchIndex)
+    return `${normalizedMarkdown.slice(0, blockEnd)}\n\n${translationBlock}${normalizedMarkdown.slice(blockEnd)}`
+  }
+
+  return undefined
+}
+
 function getSourceAction(options: {
   forceRetranslate: boolean
   existingTranslation?: ExistingTranslation
@@ -433,4 +458,26 @@ function findTranslationEnd(lines: string[], startIndex: number) {
     }
   }
   return -1
+}
+
+function findContainingMarkdownBlockEnd(markdown: string, matchIndex: number) {
+  let scanIndex = matchIndex
+
+  while (scanIndex < markdown.length) {
+    const lineEnd = markdown.indexOf('\n', scanIndex)
+    if (lineEnd === -1) {
+      return markdown.length
+    }
+
+    const nextLineStart = lineEnd + 1
+    const nextLineEnd = markdown.indexOf('\n', nextLineStart)
+    const nextLine = markdown.slice(nextLineStart, nextLineEnd === -1 ? markdown.length : nextLineEnd)
+    if (nextLine.trim() === '') {
+      return lineEnd
+    }
+
+    scanIndex = nextLineStart
+  }
+
+  return markdown.length
 }

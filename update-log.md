@@ -260,3 +260,48 @@
   - ` M src/style.scss`
   - ` M update-log.md`
 
+## 2026-04-25 12:35:24 +0800
+- Project root: `D:\GoCode\tranlates-plugin`
+- Total size bytes: 213044
+- Total size: 208.05 KB
+- File count: 23
+- Delta: +290 bytes (+290.00 B)
+- Label: Insert popup translation without replacing source
+- Changed files:
+  - ` M src/main.ts`
+
+## 2026-04-25 12:38:13 +0800
+- Project root: `D:\GoCode\tranlates-plugin`
+- Total size bytes: 213816
+- Total size: 208.80 KB
+- File count: 23
+- Delta: +772 bytes (+772.00 B)
+- Label: Insert popup translation below containing block
+- Changed files:
+  - ` M src/main.ts`
+  - ` M update-log.md`
+
+## 2026-04-25 12:41:00 +0800
+- Project root: `D:\GoCode\tranlates-plugin`
+- Total size bytes: 213973
+- Total size: 208.96 KB
+- File count: 23
+- Delta: +157 bytes (+157.00 B)
+- Label: Fix popup insertion caret placement
+- Changed files:
+  - ` M src/main.ts`
+  - ` M update-log.md`
+
+## 2026-04-25 12:45:34 +0800
+- Project root: `D:\GoCode\tranlates-plugin`
+- Total size bytes: 215768
+- Total size: 210.71 KB
+- File count: 23
+- Delta: +1795 bytes (+1.75 KB)
+- Label: Make popup insertion paragraph-based
+- Changed files:
+  - ` M src/main.ts`
+  - ` M src/translation/markdown.ts`
+  - ` M test/translation.test.ts`
+  - ` M update-log.md`
+

@@ -13,7 +13,7 @@ import {
 } from './settings'
 import { StatusBarButton } from './status-bar'
 import { translateInBatches } from './translation/api'
-import { applyTranslationResults, buildStandaloneTranslationMarkdown, buildTranslationBlock, buildTranslationPlan } from './translation/markdown'
+import { applyTranslationResults, buildStandaloneTranslationMarkdown, buildTranslationBlock, buildTranslationPlan, insertTranslationAfterMatchingBlock } from './translation/markdown'
 import { hashText } from './translation/hash'
 import type { TranslationMemoryEntry, TranslationTask } from './translation/types'
 
@@ -839,21 +839,18 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
       }
 
       this.restoreSelectionRange(range)
-      await this.nextFrame()
 
-      let sourceMarkdown = sourceText
-      try {
-        sourceMarkdown = await this.captureSelectionMarkdown()
-      }
-      catch {
-        // Use the already translated selected text when Typora cannot expose
-        // the Markdown source for the preserved selection.
+      const selectedMarkdown = await this.readSelectedMarkdownForInsertion(sourceText)
+      const sourceHash = hashText(sourceText)
+      const translationBlock = buildTranslationBlock(translatedText, targetLanguage, sourceHash)
+      const markdown = await this.readCurrentMarkdown()
+      const updatedMarkdown = insertTranslationAfterMatchingBlock(markdown, selectedMarkdown, sourceText, translationBlock)
+      if (!updatedMarkdown) {
+        new Notice(this.i18n.t.noSelection)
+        return false
       }
 
-      const sourceHash = hashText(sourceMarkdown)
-      const replacement = this.buildSelectionReplacement(sourceMarkdown, translatedText, targetLanguage, sourceHash)
-      editor.UserOp.backspaceHandler(editor, null, 'Delete')
-      editor.UserOp.pasteHandler(editor, replacement, true)
+      await this.replaceDocumentMarkdown(updatedMarkdown)
       return true
     })
   }
@@ -865,7 +862,16 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
     }
 
     selection.removeAllRanges()
-    selection.addRange(range)
+    selection.addRange(range.cloneRange())
+  }
+
+  private async readSelectedMarkdownForInsertion(fallbackText: string) {
+    try {
+      return await this.captureSelectionMarkdown()
+    }
+    catch {
+      return fallbackText
+    }
   }
 
   private async withAutoTranslateSuppressed<T>(operation: () => Promise<T>) {
