@@ -29,6 +29,7 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
   private autoTranslateRequestVersion = 0
   private autoTranslateActiveRange?: Range
   private autoTranslateActiveSignature = ''
+  private autoTranslateSuppressedUntil = 0
 
   async onload() {
     this.registerSettings(new PluginSettings(this.app, this.manifest, {
@@ -463,6 +464,16 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
     }
   }
 
+  private async copyTextToClipboard(text: string) {
+    const copied = await this.withAutoTranslateSuppressed(() => this.tryWriteClipboard(text))
+
+    if (!copied) {
+      new Notice(this.i18n.t.selectionPopoverCopyFailure)
+    }
+
+    return copied
+  }
+
   private async tryGetDocumentContent() {
     try {
       const content = await JSBridge.invoke('document.getContent')
@@ -486,15 +497,15 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
   }
 
   private async tryWriteClipboard(text: string) {
+    if (await this.tryWriteClipboardWithBridge(text)) {
+      return true
+    }
+
     if (await this.tryWriteClipboardWithNavigator(text)) {
       return true
     }
 
     if (this.tryWriteClipboardWithUserOp(text)) {
-      return true
-    }
-
-    if (await this.tryWriteClipboardWithBridge(text)) {
       return true
     }
 
@@ -592,7 +603,7 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
       this.scheduleAutoTranslateSelection(event)
     }
     const dismissIfOutside = (event: MouseEvent) => {
-      if (this.selectionPopover.contains(event.target)) {
+      if (this.selectionPopover.containsEvent(event)) {
         return
       }
 
@@ -602,6 +613,10 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
       }
     }
     const clearIfCollapsed = () => {
+      if (this.isAutoTranslateSuppressed()) {
+        return
+      }
+
       const selection = window.getSelection()
       if (!selection || selection.isCollapsed) {
         this.clearAutoTranslateTimer()
@@ -635,11 +650,15 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
   }
 
   private scheduleAutoTranslateSelection(triggerEvent?: Event) {
+    if (this.isAutoTranslateSuppressed()) {
+      return
+    }
+
     if (!this.settings.get('autoTranslateSelection')) {
       return
     }
 
-    if (triggerEvent && this.selectionPopover.contains(triggerEvent.target)) {
+    if (triggerEvent && this.selectionPopover.containsEvent(triggerEvent)) {
       return
     }
 
@@ -708,11 +727,7 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
         translated,
         labels,
         async () => {
-          const copied = await this.tryWriteClipboard(translated)
-          if (!copied) {
-            new Notice(this.i18n.t.selectionPopoverCopyFailure)
-          }
-          return copied
+          return this.copyTextToClipboard(translated)
         },
       )
     }
@@ -728,7 +743,7 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
   }
 
   private getEditorSelectionSnapshot() {
-    if (isInputComponent(document.activeElement) || this.isTranslating) {
+    if (isInputComponent(document.activeElement) || this.isTranslating || this.isAutoTranslateSuppressed()) {
       return undefined
     }
 
@@ -799,6 +814,26 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
     this.autoTranslateActiveRange = undefined
     this.autoTranslateActiveSignature = ''
     this.selectionPopover.hide()
+  }
+
+  private async withAutoTranslateSuppressed<T>(operation: () => Promise<T>) {
+    this.suppressAutoTranslateSelection(800)
+
+    try {
+      return await operation()
+    }
+    finally {
+      this.suppressAutoTranslateSelection(300)
+    }
+  }
+
+  private suppressAutoTranslateSelection(durationMs: number) {
+    this.clearAutoTranslateTimer()
+    this.autoTranslateSuppressedUntil = Math.max(this.autoTranslateSuppressedUntil, Date.now() + durationMs)
+  }
+
+  private isAutoTranslateSuppressed() {
+    return Date.now() < this.autoTranslateSuppressedUntil
   }
 
   private repositionSelectionPopover() {

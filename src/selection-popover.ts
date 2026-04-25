@@ -31,6 +31,14 @@ export class SelectionTranslationPopover {
     return target instanceof Node && !!this.container?.contains(target)
   }
 
+  containsEvent(event: Event) {
+    if (!this.container) {
+      return false
+    }
+
+    return event.composedPath().includes(this.container)
+  }
+
   showLoading(anchor: SelectionPopoverAnchor, labels: SelectionPopoverLabels) {
     this.labels = labels
     this.ensureContainer()
@@ -140,8 +148,12 @@ export class SelectionTranslationPopover {
     copyButton.innerHTML = getCopyIcon()
     copyButton.addEventListener('mousedown', event => {
       event.preventDefault()
+      event.stopPropagation()
     })
-    copyButton.addEventListener('click', async () => {
+    copyButton.addEventListener('click', async (event) => {
+      event.preventDefault()
+      event.stopPropagation()
+
       if (!this.copyHandler || !this.copyButton || !this.labels) {
         return
       }
@@ -163,8 +175,13 @@ export class SelectionTranslationPopover {
     closeButton.textContent = '×'
     closeButton.addEventListener('mousedown', event => {
       event.preventDefault()
+      event.stopPropagation()
     })
-    closeButton.addEventListener('click', () => this.closeHandler())
+    closeButton.addEventListener('click', (event) => {
+      event.preventDefault()
+      event.stopPropagation()
+      this.closeHandler()
+    })
 
     titleGroup.append(title, copyButton)
     header.append(titleGroup, closeButton)

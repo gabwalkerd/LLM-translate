@@ -220,3 +220,16 @@
   - ` M src/selection-popover.ts`
   - ` M src/style.scss`
 
+## 2026-04-25 12:00:08 +0800
+- Project root: `D:\GoCode\tranlates-plugin`
+- Total size bytes: 208196
+- Total size: 203.32 KB
+- File count: 23
+- Delta: +5457 bytes (+5.33 KB)
+- Label: Fix selection popover copy behavior
+- Changed files:
+  - ` M src/main.ts`
+  - ` M src/selection-popover.ts`
+  - ` M src/style.scss`
+  - `?? CLAUDE.md`
+
