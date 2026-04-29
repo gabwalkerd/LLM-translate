@@ -69,7 +69,7 @@ export const i18n = new I18n({
       toggleSelectionPopover: '开关划词翻译悬浮框',
       statusButton: '翻译全文',
       statusButtonBusy: '翻译中...',
-      statusNewFileButton: '翻译到右侧新文件',
+      statusNewFileButton: '翻译到新文件',
       statusNewFileButtonBusy: '正在创建译文文件...',
       settingsSectionApi: 'API 设置',
       settingsSectionTranslation: '翻译设置',

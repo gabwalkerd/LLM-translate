@@ -305,3 +305,13 @@
   - ` M test/translation.test.ts`
   - ` M update-log.md`
 
+## 2026-04-29 14:25:15 +0800
+- Project root: `D:\GoCode\tranlates-plugin`
+- Total size bytes: 235560
+- Total size: 230.04 KB
+- File count: 23
+- Delta: +19792 bytes (+19.33 KB)
+- Label: Support Escape key dismissal for selection translation popover
+- Changed files:
+  - ` M src/main.ts`
+

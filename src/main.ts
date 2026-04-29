@@ -610,6 +610,10 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
 
   private setupAutoTranslateSelection() {
     const schedule = (event: Event) => {
+      if (this.shouldIgnoreAutoTranslateTrigger(event)) {
+        return
+      }
+
       this.scheduleAutoTranslateSelection(event)
     }
     const dismissIfOutside = (event: MouseEvent) => {
@@ -636,9 +640,14 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
       this.repositionSelectionPopover()
     }
     const dismissOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && this.selectionPopover.visible) {
-        this.dismissSelectionPopover()
+      if (!this.isEscapeKey(event) || !this.selectionPopover.visible) {
+        return
       }
+
+      event.preventDefault()
+      event.stopPropagation()
+      this.suppressAutoTranslateSelection(1000)
+      this.dismissSelectionPopover()
     }
 
     document.addEventListener('mouseup', schedule, true)
@@ -646,6 +655,7 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
     document.addEventListener('mousedown', dismissIfOutside, true)
     document.addEventListener('selectionchange', clearIfCollapsed)
     document.addEventListener('keydown', dismissOnEscape, true)
+    window.addEventListener('keydown', dismissOnEscape, true)
     window.addEventListener('resize', reposition)
     window.addEventListener('scroll', reposition, true)
 
@@ -654,9 +664,23 @@ export default class BilingualTranslatePlugin extends Plugin<TranslationPluginSe
     this.register(() => document.removeEventListener('mousedown', dismissIfOutside, true))
     this.register(() => document.removeEventListener('selectionchange', clearIfCollapsed))
     this.register(() => document.removeEventListener('keydown', dismissOnEscape, true))
+    this.register(() => window.removeEventListener('keydown', dismissOnEscape, true))
     this.register(() => window.removeEventListener('resize', reposition))
     this.register(() => window.removeEventListener('scroll', reposition, true))
     this.register(() => this.selectionPopover.destroy())
+  }
+
+  private shouldIgnoreAutoTranslateTrigger(event: Event) {
+    if (event instanceof KeyboardEvent && this.isEscapeKey(event)) {
+      this.suppressAutoTranslateSelection(1000)
+      return true
+    }
+
+    return false
+  }
+
+  private isEscapeKey(event: KeyboardEvent) {
+    return event.key === 'Escape' || event.key === 'Esc'
   }
 
   private scheduleAutoTranslateSelection(triggerEvent?: Event) {
